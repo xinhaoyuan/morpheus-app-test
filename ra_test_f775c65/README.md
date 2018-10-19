@@ -1,6 +1,6 @@
-The test use /tmp/ra as temporary dir.
+The test uses `/tmp/ra` as the temporary dir.
 
-`make eunit` would repeat a case for 100 times.
+`make eunit` would repeat the test case for 100 times.
 
 For following shell command will keep running until a error is found:
 
