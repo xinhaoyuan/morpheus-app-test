@@ -1,4 +1,4 @@
-dep_firedrill = git https://github.com/xinhaoyuan/firedrill.git
-dep_morpheus = git https://github.com/xinhaoyuan/morpheus.git
+dep_firedrill = cp ../../firedrill
+dep_morpheus = cp ../../morpheus
 
 DEPS += firedrill morpheus
