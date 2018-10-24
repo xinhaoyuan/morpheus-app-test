@@ -14,9 +14,14 @@ test_entry() ->
                     [ monitor
                     , {heartbeat, once}
                     , { fd_opts
-                      , [ { scheduler
-                          , {basic_pos, []}}
-                        , verbose_final]}
+                      , [ verbose_final
+                        , { scheduler
+                          , {basicpos,
+                             [
+                              %% error-triggering seed
+                              %% {seed, {exrop,[286143564276823472|113473462608748755]}}
+                             ]}}
+                        ]}
                     , stop_on_deadlock
                     , {node, master@localhost}
                     , {clock_limit, 100000}
