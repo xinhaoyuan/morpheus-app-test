@@ -79,4 +79,3 @@ t_sandbox_entry() ->
        ]),
 
     ?G:exit_with(success).
-

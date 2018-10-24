@@ -57,6 +57,10 @@ test_sandbox_entry() ->
                  RC = ets:update_counter(Tab, rep_counter, 1),
                  io:format(user, "Test ~w~n", [RC]),
                  ?G:set_flags([{tracing, true}]),
+                 case RC rem 2 of
+                     1 -> ?G:set_flags([{race_weighted, true}]);
+                     0 -> ?G:set_flags([{race_weighted, false}])
+                 end,
                  t_simple_ensure_other(Ns)
          end
        ]),
