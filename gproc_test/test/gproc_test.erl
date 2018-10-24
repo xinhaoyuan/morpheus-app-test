@@ -72,9 +72,14 @@ test_sandbox_entry(Config) ->
                  io:format(user, "Test ~w~n", [RC]),
                  ?G:set_flags([{tracing, true}]),
                  case UseRaceWeighted andalso RC rem 2 of
-                     1 -> ?G:set_flags([{race_weighted, true}]);
-                     0 -> ?G:set_flags([{race_weighted, false}]);
-                     false -> ok
+                     0 ->
+                         io:format(user, "set race_weighted true~n", []),
+                         ?G:set_flags([{race_weighted, true}]);
+                     1 ->
+                         io:format(user, "set race_weighted false~n", []),
+                         ?G:set_flags([{race_weighted, false}]);
+                     false ->
+                         ok
                  end,
                  t_simple_ensure_other(Ns)
          end
