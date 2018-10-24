@@ -17,6 +17,10 @@ string_to_term(String) ->
 
 test_entry() ->
     Config = [{use_race_weighted, os:getenv("USE_RACE_WEIGHTED") =/= false}],
+    case os:getenv("TEST_WD") of
+        false -> ok;
+        Dir -> c:cd(Dir)
+    end,
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, test_sandbox_entry, [Config],
                     [ monitor
