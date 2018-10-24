@@ -8,19 +8,28 @@
 all_test_() ->
     {timeout, 3600, ?_test( test_entry() )}.
 
+
+string_to_term(String) ->
+    {ok, Tokens, _EndLine} = erl_scan:string(String),
+    {ok, AbsForm} = erl_parse:parse_exprs(Tokens),
+    {value, Value, _Bs} = erl_eval:exprs(AbsForm, erl_eval:new_bindings()),
+    Value.
+
 test_entry() ->
+    Config = [{use_race_weighted, os:getenv("USE_RACE_WEIGHTED") =/= false}],
     {Ctl, MRef} = morpheus_sandbox:start(
-                    ?MODULE, test_sandbox_entry, [],
+                    ?MODULE, test_sandbox_entry, [Config],
                     [ monitor
                     , {heartbeat, once}
                     , { fd_opts
                       , [ verbose_final
                         , { scheduler
                           , {basicpos,
-                             [
-                              %% error-triggering seed
-                              %% {seed, {exrop,[286143564276823472|113473462608748755]}}
-                             ]}}
+                             case os:getenv("SEED_TERM") of
+                                 false -> [];
+                                 Term -> [{seed, string_to_term(Term)}]
+                             end}
+                          }
                         ]}
                     , stop_on_deadlock
                     , {node, master@localhost}
@@ -35,7 +44,7 @@ test_entry() ->
 -define(GH, morpheus_guest_helper).
 -define(G, morpheus_guest).
 
-test_sandbox_entry() ->
+test_sandbox_entry(Config) ->
     ?GH:bootstrap_remote(node1@localhost),
     ?GH:bootstrap_remote(node2@localhost),
     ?GH:bootstrap_remote(node3@localhost),
@@ -49,6 +58,7 @@ test_sandbox_entry() ->
 
     Tab = ets:new(test_tab, [public]),
 
+    UseRaceWeighted = proplists:get_value(use_race_weighted, Config),
     ets:insert(Tab, {rep_counter, 0}),
 
     ?GH:sync_task(
@@ -57,9 +67,10 @@ test_sandbox_entry() ->
                  RC = ets:update_counter(Tab, rep_counter, 1),
                  io:format(user, "Test ~w~n", [RC]),
                  ?G:set_flags([{tracing, true}]),
-                 case RC rem 2 of
+                 case UseRaceWeighted andalso RC rem 2 of
                      1 -> ?G:set_flags([{race_weighted, true}]);
-                     0 -> ?G:set_flags([{race_weighted, false}])
+                     0 -> ?G:set_flags([{race_weighted, false}]);
+                     false -> ok
                  end,
                  t_simple_ensure_other(Ns)
          end
