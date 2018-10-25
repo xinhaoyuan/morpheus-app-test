@@ -71,15 +71,13 @@ test_sandbox_entry(Config) ->
                  RC = ets:update_counter(Tab, rep_counter, 1),
                  io:format(user, "Test ~w~n", [RC]),
                  ?G:set_flags([{tracing, true}]),
-                 case UseRaceWeighted andalso RC rem 2 of
-                     0 ->
+                 case UseRaceWeighted andalso RC > 50 of
+                     true ->
                          io:format(user, "set race_weighted true~n", []),
                          ?G:set_flags([{race_weighted, true}]);
-                     1 ->
+                     false ->
                          io:format(user, "set race_weighted false~n", []),
                          ?G:set_flags([{race_weighted, false}]);
-                     false ->
-                         ok
                  end,
                  t_simple_ensure_other(Ns)
          end
