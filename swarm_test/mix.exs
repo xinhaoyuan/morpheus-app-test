@@ -21,8 +21,8 @@ defmodule SwarmTestElixir.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:morpheus, git: "https://github.com/xinhaoyuan/morpheus.git", ref: "dev", runtime: false},
-      {:firedrill, git: "https://github.com/xinhaoyuan/firedrill.git", ref: "dev", override: true, runtime: false},
+      {:morpheus, git: "https://github.com/xinhaoyuan/morpheus.git", runtime: false},
+      {:firedrill, git: "https://github.com/xinhaoyuan/firedrill.git", override: true, runtime: false},
       {:swarm, git: "https://github.com/bitwalker/swarm.git", ref: "738decbc9cfcc4b0de80b6a4f72b092b01f4c8f7", runtime: false}
     ]
   end
