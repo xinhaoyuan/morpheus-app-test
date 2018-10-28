@@ -10,11 +10,11 @@ use Mix.Config
 
 # You can configure your application as:
 #
-#     config :swarm_test_elixir, key: :value
+#     config :swarm_test, key: :value
 #
 # and access this configuration in your application as:
 #
-#     Application.get_env(:swarm_test_elixir, :key)
+#     Application.get_env(:swarm_test, :key)
 #
 # You can also configure a 3rd-party app:
 #

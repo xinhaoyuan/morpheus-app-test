@@ -1,9 +1,9 @@
-defmodule SwarmTestElixir.MixProject do
+defmodule SwarmTest.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :swarm_test_elixir,
+      app: :swarm_test,
       version: "0.1.0",
       elixir: "~> 1.8-dev",
       start_permanent: Mix.env() == :prod,
