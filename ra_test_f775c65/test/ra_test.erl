@@ -12,6 +12,7 @@ all_test_() ->
 -define(S, morpheus_sandbox).
 -define(GH, morpheus_guest_helper).
 -define(G, morpheus_guest).
+-define(REPEAT, 100).
 
 test_entry() ->
     Config = [ {server_id,  {tserver1, node()}}
@@ -36,7 +37,7 @@ test_entry() ->
               [{scheduler, {basicpos, []}}]}
            , {heartbeat, once}
            , {clock_offset, 1538099922306}
-           , {clock_limit, 100 * 30000}
+           , {clock_limit, ?REPEAT * 30000}
            , stop_on_deadlock
            %% , trace_send, trace_receive
            %% , verbose_handle, verbose_ctl
@@ -57,7 +58,7 @@ test_sandbox_entry(Config) ->
     PrivDir = ?config(priv_dir, Config),
 
     ?GH:sync_task(
-       [repeat, 100,
+       [repeat, ?REPEAT,
         fun () ->
                 lists:foreach(
                   fun (dummy_head) ->
