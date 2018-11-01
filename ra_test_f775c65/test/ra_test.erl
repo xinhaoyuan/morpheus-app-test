@@ -33,6 +33,11 @@ test_entry() ->
              , {uid5, <<"node5_uid">>}
              , {cluster_name, <<"cluster">>}
              , {priv_dir, "/tmp/ra"}
+             , {testcase,
+                case os:getenv("TESTCASE") of
+                    false -> badkey_previous_cluster;
+                    S -> list_to_atom(S)
+                end}
              ],
 
     {Ctl, MRef} =
@@ -58,7 +63,7 @@ test_entry() ->
     ?assertEqual(success, receive {'DOWN', MRef, _, _, Reason} -> Reason end),
     ok.
 
-run_test_fun(Config, F) ->
+run_test_fun(Config, FName) ->
     PrivDir = ?config(priv_dir, Config),
     UseRaceWeighted = ?config(use_race_weighted, Config),
     case PrivDir of
@@ -76,7 +81,7 @@ run_test_fun(Config, F) ->
     end,
 
     ra:start_in(PrivDir),
-    F(Config),
+    apply(?MODULE, FName, [Config]),
     application:stop(ra),
     timer:sleep(1000),
     ok.
@@ -90,31 +95,16 @@ test_sandbox_entry(Config) ->
     ets:new(test, [public, named_table]),
     ets:insert(test, {counter, 0}),
 
+    Case = proplists:get_value(testcase, Config),
+
     ?GH:sync_task(
        [repeat, ?REPEAT,
         fun () ->
-                lists:foreach(
-                  fun (dummy_head) ->
-                          ok;
-                      (Case) ->
-
-                          TC = ets:update_counter(test, counter, 1),
-                          io:format(user, "Test ~w~n", [TC]),
-                          run_test_fun(Config, Case),
-                          io:format(user, "Finished~n", [])
-
-                  end, [ dummy_head
-                       %% %% Fixed
-                       %% , fun call_from/1
-                       %% SEED_TERM="{exrop,[215237787223549923|254186191907464752]}."
-                       , fun badkey_previous_cluster/1
-                       %% %% SEED_TERM="{exrop,[71340763580235082|255124149775943689]}."
-                       %% , fun inconsistent_state/1
-                       %% %% SEED_TERM="{seed, {exrop,[7091665519689774|77123832616578765]}}." 
-                       %% , fun inconsistent_state_2/1
-                       ])
+                TC = ets:update_counter(test, counter, 1),
+                io:format(user, "Test ~w~n", [TC]),
+                run_test_fun(Config, Case),
+                io:format(user, "Finished~n", [])
         end]),
-    %% run_test_fun(Config, fun exp_test/1),
 
     ets:delete(test),
 
