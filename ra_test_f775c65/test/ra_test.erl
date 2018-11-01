@@ -14,6 +14,12 @@ all_test_() ->
 -define(G, morpheus_guest).
 -define(REPEAT, 100).
 
+string_to_term(String) ->
+    {ok, Tokens, _EndLine} = erl_scan:string(String),
+    {ok, AbsForm} = erl_parse:parse_exprs(Tokens),
+    {value, Value, _Bs} = erl_eval:exprs(AbsForm, erl_eval:new_bindings()),
+    Value.
+
 test_entry() ->
     Config = [ {server_id,  {tserver1, node()}}
              , {uid, <<"node1_uid">>}
