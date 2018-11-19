@@ -6,20 +6,23 @@ defmodule SwarmTestTest do
   test "Test" do
     # Deadlocks and inconsistent views in test_4
     config = %{
-      sched => case System.get_env("SCHED") do
-                 nil -> basicpos
-                 s -> String.to_atom(s)
-               end,
-      testcase => case System.get_env("TESTCASE") do
-                    nil -> :test_1
-                    s -> String.to_atom(s)
-                  end,
-      repeat => case System.get_env("REPEAT") do
-                  nil -> 100
-                  s -> String.to_integer(s)
-                end
+      sched:
+      case System.get_env("SCHED") do
+        nil -> :basicpos
+        s -> String.to_atom(s)
+      end,
+      testcase:
+      case System.get_env("TESTCASE") do
+        nil -> :test_1
+        s -> String.to_atom(s)
+      end,
+      repeat:
+      case System.get_env("REPEAT") do
+        nil -> 100
+        s -> String.to_integer(s)
+      end
     }
-    :io.format(:user, 'Test with config', [config]),
+    :io.format(:user, 'Test with config ~p~n', [config])
     SwarmTest.test(config)
   end
 
