@@ -7,24 +7,24 @@ defmodule SwarmTest do
     receive do _ -> black_hole() end
   end
 
-  def test(entry_func) do
-    {_ctl, mref} = :morpheus_sandbox.start(__MODULE__, entry_func, [],
+  def test(config) do
+    {_ctl, mref} = :morpheus_sandbox.start(__MODULE__, config.testcase, [config],
       [ :monitor,
         {:heartbeat, :once},
         {:fd_opts, [
             :verbose_final,
             {:scheduler,
-             {:basicpos, [
+             {config.sched, [
                ]}}
             ]},
         {:node, :node1@localhost},
-        {:clock_limit, 100 * 30000},
+        {:clock_limit, config.repeat * 30000 + 10000},
         # :verbose_handle, :verbose_ctl,
       ])
     :success = receive do {:DOWN, ^mref, _, _, reason} -> reason end
   end
 
-  def test_1() do
+  def test_1(config) do
     nodes = [node_1, node_2, node_3] =
       [:node1@localhost, :node2@localhost, :node3@localhost]
     Enum.each(nodes -- [node_1],
@@ -42,7 +42,7 @@ defmodule SwarmTest do
     :io.format(:user, 'start testing~n', [])
 
     GH.sync_task(
-      [ :repeat, 100,
+      [ :repeat, config.repeat,
         fn ->
           # generate pids on each node
           pids = [pid1, pid2, pid3] =
@@ -99,7 +99,7 @@ defmodule SwarmTest do
     G.exit_with(:success)
   end
 
-  def test_2() do
+  def test_2(config) do
     nodes = [node_1, node_2, node_3] =
       [:node1@localhost, :node2@localhost, :node3@localhost]
     Enum.each(nodes -- [node_1],
@@ -117,7 +117,7 @@ defmodule SwarmTest do
     :io.format(:user, 'start testing~n', [])
 
     GH.sync_task(
-      [ :repeat, 100,
+      [ :repeat, config.repeat,
         fn ->
           tab = :ets.new(:test_ets, [:public])
           pid = spawn fn ->
@@ -169,7 +169,7 @@ defmodule SwarmTest do
     G.exit_with(:success)
   end
 
-  def test_3() do
+  def test_3(config) do
     nodes = [node_1, node_2, node_3] =
       [:node1@localhost, :node2@localhost, :node3@localhost]
     Enum.each(nodes -- [node_1],
@@ -187,7 +187,7 @@ defmodule SwarmTest do
     :io.format(:user, 'start testing~n', [])
 
     GH.sync_task(
-      [ :repeat, 100,
+      [ :repeat, config.repeat,
         fn ->
           tab = :ets.new(:test_ets, [:public])
           pid1 = spawn &black_hole/0
@@ -219,7 +219,7 @@ defmodule SwarmTest do
     G.exit_with(:success)
   end
 
-  def test_4() do
+  def test_4(config) do
     nodes = [node_1, node_2, node_3] =
       [:node1@localhost, :node2@localhost, :node3@localhost]
     Enum.each(nodes -- [node_1],
@@ -237,7 +237,7 @@ defmodule SwarmTest do
     :io.format(:user, 'start testing~n', [])
 
     GH.sync_task(
-      [ :repeat, 100,
+      [ :repeat, config.repeat,
         fn ->
           # generate pids on each node
           pids = [pid1, pid2, pid3] =
