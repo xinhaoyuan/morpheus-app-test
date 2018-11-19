@@ -35,11 +35,11 @@ for i in range(0, args.repeat):
     except subprocess.CalledProcessError as x:
         succ = False
 
-    print("run {}: {}".format(i, succ))
     if succ:
         succ_counter += 1
     else:
         failed_counter += 1
 
+    print("run {}: {} ({}/{})".format(i, succ, succ_counter, failed_counter))
+
 print(args)
-print("succ = {}, failed = {}".format(succ_counter, failed_counter))
