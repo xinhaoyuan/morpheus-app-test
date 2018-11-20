@@ -16,7 +16,20 @@ string_to_term(String) ->
     Value.
 
 test_entry() ->
-    Config = [{use_race_weighted, os:getenv("USE_RACE_WEIGHTED") =/= false}],
+    Config = [ {use_race_weighted, os:getenv("USE_RACE_WEIGHTED") =/= false}
+             , {repeat, case os:getenv("REPEAT") of
+                            false -> 100;
+                            _R -> list_to_integer(_R)
+                        end}
+             , {testcase, case os:getenv("TESTCASE") of
+                              false -> t_simple_ensure_other;
+                              _T -> list_to_atom(_T)
+                          end}
+             ],
+    Sched = case os:getenv("SCHED") of
+                false -> basicpos;
+                _S -> list_to_atom(_S)
+            end,
     case os:getenv("TEST_WD") of
         false -> ok;
         Dir -> c:cd(Dir)
@@ -28,7 +41,7 @@ test_entry() ->
                     , { fd_opts
                       , [ verbose_final
                         , { scheduler
-                          , {basicpos,
+                          , {Sched,
                              case os:getenv("SEED_TERM") of
                                  false -> [];
                                  Term -> [{seed, string_to_term(Term)}]
@@ -66,7 +79,7 @@ test_sandbox_entry(Config) ->
     ets:insert(Tab, {rep_counter, 0}),
 
     ?GH:sync_task(
-       [ repeat, 100
+       [ repeat, proplists:get_value(repeat, Config)
        , fun () ->
                  RC = ets:update_counter(Tab, rep_counter, 1),
                  io:format(user, "Test ~w~n", [RC]),
@@ -79,7 +92,9 @@ test_sandbox_entry(Config) ->
                          io:format(user, "set race_weighted false~n", []),
                          ?G:set_flags([{race_weighted, false}])
                  end,
-                 t_simple_ensure_other(Ns)
+
+                 Testcase = proplists:get_value(testcase, Config),
+                 apply(?MODULE, Testcase, [Ns])
          end
        ]),
 
