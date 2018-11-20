@@ -25,6 +25,7 @@ test_entry() ->
                               false -> t_simple_ensure_other;
                               _T -> list_to_atom(_T)
                           end}
+             , {nodes, [node1@localhost, node2@localhost, node3@localhost]}
              ],
     Sched = case os:getenv("SCHED") of
                 false -> basicpos;
@@ -34,6 +35,12 @@ test_entry() ->
         false -> ok;
         Dir -> c:cd(Dir)
     end,
+    lists:foreach(fun (N) ->
+                          Cmd = lists:flatten(
+                                  io_lib:format("rm gproc_dist_~s", [N])
+                                 ),
+                          os:cmd(Cmd)
+                  end, proplists:get_value(nodes, Config)),
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, test_sandbox_entry, [Config],
                     [ monitor
@@ -62,12 +69,11 @@ test_entry() ->
 -define(G, morpheus_guest).
 
 test_sandbox_entry(Config) ->
-    ?GH:bootstrap_remote(node1@localhost),
-    ?GH:bootstrap_remote(node2@localhost),
-    ?GH:bootstrap_remote(node3@localhost),
+    Ns = proplists:get_value(nodes, Config),
+    lists:foreach(fun (N) ->
+                          ?GH:bootstrap_remote(N)
+                  end, Ns),
     ?GH:bootstrap(master@localhost),
-
-    Ns = [node1@localhost, node2@localhost, node3@localhost],
 
     {[ok,ok,ok],[]} = rpc:multicall(Ns, application, set_env,
                                     [gproc, gproc_dist, Ns]),
