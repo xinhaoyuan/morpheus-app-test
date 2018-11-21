@@ -8,12 +8,18 @@ all_test_() ->
     {timeout, 120, ?_test( test_entry() )}.
 
 test_entry() ->
+    Sched =
+        case os:getenv("SCHED") of
+            false -> basicpos;
+            _S -> list_to_atom(_S)
+        end,
+    io:format(user, "Using sched ~w~n", [Sched]),
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [],
                     [ monitor
                     , { fd_opts
                       , [ { scheduler
-                          , {basicpos, []} }
+                          , {Sched, []} }
                         , verbose_final ] }
                     , {node, node1@localhost}
                     , {clock_limit, 600000}
@@ -35,7 +41,7 @@ t_sandbox_entry() ->
     ?G:set_flags([{tracing, true}]),
     ok = application:start(locks),
     ?GH:sync_task(
-       [ repeat, 100
+       [ repeat, 1
        , fun t1/0
        ]),
     ?G:exit_with(success).

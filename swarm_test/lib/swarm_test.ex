@@ -300,5 +300,87 @@ defmodule SwarmTest do
     G.exit_with(:success)
   end
 
+  def test_5(config) do
+    nodes = [node_1, node_2, node_3] =
+      [:node1@localhost, :node2@localhost, :node3@localhost]
+    Enum.each(nodes -- [node_1],
+      fn node -> GH.bootstrap_remote(node) end)
+    GH.bootstrap(node_1)
+
+    Enum.each(nodes,
+      fn node ->
+        me = self()
+        pid = :erlang.spawn(node, fn -> Application.ensure_all_started(:swarm); send(me, self()) end)
+        receive do ^pid -> :ok end
+      end)
+
+    :timer.sleep(10000)
+    :tab = :ets.new(:tab, [:named_table, :public])
+    :ets.insert(:tab, {:test_counter, 0})
+    :io.format(:user, 'start testing~n', [])
+
+    GH.sync_task(
+      [ :repeat, config.repeat,
+        fn ->
+          counter = :ets.update_counter(:tab, :test_counter, 1)
+          :io.format(:user, 'Test ~w~n', [counter])
+
+          # generate pids on each node
+          pids = [pid1, pid2, pid3] =
+            List.foldr(nodes,
+              [],
+              fn (node, acc) ->
+                pid = :erlang.spawn(node, &black_hole/0)
+                ^node = :erlang.node(pid)
+                [pid | acc]
+              end)
+
+          tab = :ets.new(:test_tab, [:public])
+
+          GH.sync_task(
+            [ :par,
+              fn ->
+                r0 = :rpc.call(node_1, Swarm, :register_name, [:test_proc, pid1])
+                :ets.insert(tab, {:result_1, [r0]})
+              end,
+              fn ->
+                :ok = :rpc.call(node_3, Application, :stop, [:swarm])
+                :ok = :rpc.call(node_3, Application, :start, [:swarm])
+              end
+            ])
+
+          :timer.sleep(10000)
+
+          {views, _} = :rpc.multicall(nodes, Swarm, :registered, [])
+          :io.format(:user, 'pids ~p~n', [pids])
+          :io.format(:user, 'result ~p~n', [:ets.tab2list(tab)])
+          :io.format(:user, 'views ~p~n', [views])
+          # make sure they have the same views
+          [x, x, x] = views
+          case :ets.lookup(tab, :result_1) do
+            [{_, [:yes]}] ->
+              ^x = [{:test_proc, pid1}]
+            [{_, [:no]}] ->
+              :ok
+            _Other ->
+              :erlang.error(:unexpected, _Other)
+          end
+
+          Enum.each(pids,
+            fn pid ->
+              mref = Process.monitor(pid)
+              Process.exit(pid, :kill)
+              receive do
+                {:DOWN, ^mref, _, _, _} ->
+                  :ok
+              end
+            end)
+          :ets.delete(tab)
+        end
+      ])
+
+    G.exit_with(:success)
+  end
+
 
 end

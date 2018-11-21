@@ -8,12 +8,19 @@ all_test_() ->
     {timeout, 120, ?_test( test_entry() )}.
 
 test_entry() ->
+    Sched =
+        case os:getenv("SCHED") of
+            false ->
+                basicpos;
+            _S -> list_to_atom(_S)
+        end,
+    io:format(user, "Use sched ~s~n", [Sched]),
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [],
                     [ monitor
                     , { fd_opts
                       , [ { scheduler
-                          , {basicpos, []} }
+                          , {Sched, []} }
                         , verbose_final ] }
                     , {node, node1@localhost}
                     , {clock_limit, 600000}
@@ -40,10 +47,14 @@ t_sandbox_entry() ->
 
     {[ok, ok, ok], []} = rpc:multicall(Nodes, application, start, [locks]),
 
+    tab = ets:new(tab, [named_table, public]),
+    ets:insert(tab, {test_counter, 0}),
+
     ?GH:sync_task(
-       [ repeat, 100
+       [ repeat, 1
        , fun () ->
-                 io:format(user, "Test start~n", []),
+                 Cnt = ets:update_counter(tab, test_counter, 1),
+                 io:format(user, "Test ~w~n", [Cnt]),
                  Workers =
                      lists:foldr(
                        fun (Id, Acc) ->
