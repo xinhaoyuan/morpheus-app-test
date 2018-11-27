@@ -1,0 +1,33 @@
+diff --git a/src/gen_leader.erl b/src/gen_leader.erl
+index fe70d99..493398f 100644
+--- a/src/gen_leader.erl
++++ b/src/gen_leader.erl
+@@ -269,6 +269,14 @@ start(Name, CandidateNodes, OptArgs, Mod, Arg, Options)
+             Mod::module(), Arg::term(), Options::list()) -> start_ret().
+ start_link(Name, CandidateNodes, OptArgs, Mod, Arg, Options)
+   when is_atom(Name), is_list(CandidateNodes), is_list(OptArgs) ->
++    case node() of
++        node2@localhost ->
++            timer:sleep(500), io:format(user, "SP 2~n", []);
++        node3@localhost ->
++            timer:sleep(250), io:format(user, "SP 1~n", []);
++        _ ->
++            ok
++    end,
+     gen:start(?MODULE, link, {local,Name},
+               Mod, {CandidateNodes, OptArgs, Arg}, Options).
+ 
+@@ -487,6 +495,13 @@ init_it(Starter,Parent,Name,Mod,{UnsortedCandidateNodes,OptArgs,Arg},Options) ->
+                       end,
+                     CandidateNodes -- [node()]),
+ 
++                    case node() of
++                        node2@localhost ->
++                            timer:sleep(500), io:format(user, "SP 4~n", []);
++                        _ ->
++                            ok
++                    end,
++
+                     safe_loop(Server, candidate, NewE, {init})
+             end;
+         {{ok, State}, true, true} ->
