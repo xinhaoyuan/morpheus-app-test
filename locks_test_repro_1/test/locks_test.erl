@@ -46,7 +46,7 @@ t1_c(CtrlProc, Id) ->
             locks:lock(Agt, [3], write),
             timer:sleep(250), io:format(user, "SP 1~n", []),
             locks:lock(Agt, [1], write),
-            %% [1] is surrendered until SP3, so 750ms will be spent until this point instead of 500ms.
+            %% [1] is surrendered until SP3, so 500ms will be spent until this point instead of 250ms.
             %% Delaying 500 is enough to enforce the order
             timer:sleep(500), io:format(user, "SP 4~n", []),
             locks:lock(Agt, [2], write),
