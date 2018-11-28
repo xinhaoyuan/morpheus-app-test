@@ -7,28 +7,39 @@
 all_test_() ->
     {timeout, 120, ?_test( test_entry() )}.
 
+is_scoped(locks_agent) ->
+    true;
+is_scoped(_) ->
+    false.
+
 test_entry() ->
     Sched =
         case os:getenv("SCHED") of
             false -> basicpos;
             _S -> list_to_atom(_S)
         end,
+    MConfig = [ monitor
+              , { fd_opts
+                , [ { scheduler
+                    , {Sched, []} }
+                  , verbose_final ] }
+              , {node, node1@localhost}
+              , {clock_limit, 600000}
+              , {clock_offset, 1539105131938}
+              , {aux_module, ?MODULE}
+              , stop_on_deadlock
+                %% , trace_send, trace_receive
+                %% , verbose_handle, verbose_ctl
+                %% , {trace_from_start, true}
+              ] ++ case os:getenv("SCOPED") of
+                       false -> [];
+                       "" -> [];
+                       _ -> [{scoped_weight, true}]
+                   end,
     io:format(user, "Using sched ~w~n", [Sched]),
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [],
-                    [ monitor
-                    , { fd_opts
-                      , [ { scheduler
-                          , {Sched, []} }
-                        , verbose_final ] }
-                    , {node, node1@localhost}
-                    , {clock_limit, 600000}
-                    , {clock_offset, 1539105131938}
-                    , stop_on_deadlock
-                    %% , trace_send, trace_receive
-                    %% , verbose_handle, verbose_ctl
-                    %% , {trace_from_start, true}
-                    ]),
+                    MConfig),
     success = receive {'DOWN', MRef, _, _, Reason} -> Reason end,
     ok.
 
