@@ -1,0 +1,17 @@
+diff --git a/src/ra_server.erl b/src/ra_server.erl
+index e35bbd7..d92ba64 100644
+--- a/src/ra_server.erl
++++ b/src/ra_server.erl
+@@ -688,6 +688,12 @@ handle_follower(#append_entries_rpc{term = Term,
+             ?INFO("~w: follower did not have entry at ~b in ~b."
+                   " Requesting from ~b~n",
+                   [Id, PLIdx, PLTerm, Reply#append_entries_reply.next_index]),
++            case Id of
++                {tserver3, _} ->
++                    timer:sleep(1000);
++                _ ->
++                    ok
++            end,
+             Effects = [cast_reply(Id, LeaderId, Reply)],
+             {await_condition,
+              State0#{leader_id => LeaderId,
