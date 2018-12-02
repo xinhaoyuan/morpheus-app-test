@@ -1,0 +1,12 @@
+diff --git a/src/mirrored_supervisor.erl b/src/mirrored_supervisor.erl
+index ec21a8e..7e53f9b 100644
+--- a/src/mirrored_supervisor.erl
++++ b/src/mirrored_supervisor.erl
+@@ -288,6 +288,7 @@ handle_call({init, Overall}, _From,
+     pg2:create(Group),
+     ok = pg2:join(Group, Overall),
+     Rest = pg2:get_members(Group) -- [Overall],
++    timer:sleep(500),
+     case Rest of
+         [] -> TxFun(fun() -> delete_all(Group) end);
+         _  -> ok
