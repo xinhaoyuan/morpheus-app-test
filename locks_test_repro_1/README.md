@@ -7,4 +7,4 @@ So later when B tries to lock [1], it will reject the lock info from the `locks_
 This leads to a deadlock, i.e. B will never be able to acquire [1].
 
 Four critical delays are introduced in the testcase to reproduce the failure.
-Four more delays in the beginning is just for having a determinisitic agent pid order, which according to symmetry is not critical.
+Four more delays in the beginning are just for having a determinisitic agent pid order, which according to symmetry are not critical.
