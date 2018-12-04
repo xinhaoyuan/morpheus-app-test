@@ -1,0 +1,12 @@
+diff --git a/src/gen_leader.erl b/src/gen_leader.erl
+index fe70d99..84b4ddf 100644
+--- a/src/gen_leader.erl
++++ b/src/gen_leader.erl
+@@ -1598,6 +1598,7 @@ mon_handle_req({monitor, P}, From, Refs) ->
+ mon_handle_down(Ref, Parent, Refs) ->
+     case lists:keytake(Ref, 1, Refs) of
+         {value, {_, Node}, Refs1} ->
++            io:format(user, "delay start~n", []), timer:sleep(250), io:format(user, "delay done~n", []),
+             Parent ! {ldr, 'DOWN', Node},
+             Refs1;
+         false ->
