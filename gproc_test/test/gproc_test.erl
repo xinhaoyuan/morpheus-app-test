@@ -262,6 +262,14 @@ t_master_dies([A,B,C] = Ns) ->
      || {Nx, Px} <- Names],
     ok.
 
+t_simple_reg([H|_] = Ns) ->
+    Name = ?T_NAME,
+    P = t_spawn_reg(H, Name),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P)),
+    ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
+    ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
+    ?assertMatch(ok, t_call(P, die)).
+
 read_result({badrpc, {'EXIT', {badarg, _}}}) -> badarg;
 read_result(R) -> R.
 
