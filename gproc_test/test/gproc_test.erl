@@ -75,7 +75,13 @@ test_entry() ->
                     %% , trace_receive, trace_send
                     %% , verbose_handle, verbose_ctl
                     %% , {trace_from_start, true}
-                    ]),
+                    ]
+                    ++ case os:getenv("ONLY_SEND") of
+                           false -> [];
+                           "" -> [];
+                           _ -> [{only_schedule_send, true}]
+                       end
+                   ),
     success = receive {'DOWN', MRef, _, _, Reason} -> Reason end,
     ok.
 
