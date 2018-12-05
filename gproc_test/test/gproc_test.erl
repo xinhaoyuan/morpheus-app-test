@@ -15,32 +15,44 @@ string_to_term(String) ->
     {value, Value, _Bs} = erl_eval:exprs(AbsForm, erl_eval:new_bindings()),
     Value.
 
+-define(config(Key, Data), proplists:get_value(Key, Data)).
+
 test_entry() ->
-    Config = [ {use_race_weighted, os:getenv("USE_RACE_WEIGHTED") =/= false}
-             , {repeat, case os:getenv("REPEAT") of
-                            false -> 100;
-                            _R -> list_to_integer(_R)
-                        end}
-             , {testcase, case os:getenv("TESTCASE") of
-                              false -> t_simple_ensure_other;
-                              _T -> list_to_atom(_T)
-                          end}
+    Config = [ {repeat,
+                case os:getenv("REPEAT") of
+                    false -> 100;
+                    _R -> list_to_integer(_R)
+                end}
+             , {testcase,
+                case os:getenv("TESTCASE") of
+                    false -> t_simple_ensure_other;
+                    _T -> list_to_atom(_T)
+                end}
              , {nodes, [node1@localhost, node2@localhost, node3@localhost]}
+             , {sched,
+                case os:getenv("SCHED") of
+                    false -> basicpos;
+                    _S -> list_to_atom(_S)
+                end}
+             , {reset_gproc,
+                case os:getenv("RESET_GPROC") of
+                    false -> false;
+                    "" -> false;
+                    _ -> true
+                end}
              ],
-    Sched = case os:getenv("SCHED") of
-                false -> basicpos;
-                _S -> list_to_atom(_S)
-            end,
+    io:format(user, "Test config = ~p~n", [Config]),
     case os:getenv("TEST_WD") of
         false -> ok;
         Dir -> c:cd(Dir)
     end,
-    lists:foreach(fun (N) ->
-                          Cmd = lists:flatten(
-                                  io_lib:format("rm gproc_dist_~s", [N])
-                                 ),
-                          os:cmd(Cmd)
-                  end, proplists:get_value(nodes, Config)),
+    lists:foreach(
+      fun (N) ->
+              Cmd = lists:flatten(
+                      io_lib:format("rm gproc_dist_~s", [N])
+                     ),
+              os:cmd(Cmd)
+      end, ?config(nodes, Config)),
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, test_sandbox_entry, [Config],
                     [ monitor
@@ -48,16 +60,18 @@ test_entry() ->
                     , { fd_opts
                       , [ verbose_final
                         , { scheduler
-                          , {Sched,
-                             case os:getenv("SEED_TERM") of
-                                 false -> [];
-                                 Term -> [{seed, string_to_term(Term)}]
-                             end}
+                          , {?config(sched, Config),
+                             []
+                             ++ case os:getenv("SEED_TERM") of
+                                    false -> [];
+                                    Term -> [{seed, string_to_term(Term)}]
+                                end
+                            }
                           }
                         ]}
                     , stop_on_deadlock
                     , {node, master@localhost}
-                    , {clock_limit, 100000}
+                    , {clock_limit, 10000 + ?config(repeat, Config) * 10000}
                     %% , trace_receive, trace_send
                     %% , verbose_handle, verbose_ctl
                     %% , {trace_from_start, true}
@@ -77,30 +91,55 @@ test_sandbox_entry(Config) ->
 
     {[ok,ok,ok],[]} = rpc:multicall(Ns, application, set_env,
                                     [gproc, gproc_dist, Ns]),
-    {[ok,ok,ok],[]} = rpc:multicall(Ns, application, start, [gproc]),
 
+    case ?config(reset_gproc, Config) of
+        true ->
+            ok;
+        false ->
+            %% sequential start for minimal error surface
+            lists:foreach(
+              fun (N) ->
+                      ok = rpc:call(N, application, ensure_started, [gproc]),
+                      timer:sleep(250)
+              end, Ns)
+    end,
+    
     Tab = ets:new(test_tab, [public]),
 
     UseRaceWeighted = proplists:get_value(use_race_weighted, Config),
     ets:insert(Tab, {rep_counter, 0}),
 
     ?GH:sync_task(
-       [ repeat, proplists:get_value(repeat, Config)
+       [ repeat, ?config(repeat, Config)
        , fun () ->
                  RC = ets:update_counter(Tab, rep_counter, 1),
-                 io:format(user, "Test ~w~n", [RC]),
-                 ?G:set_flags([{tracing, true}]),
-                 case UseRaceWeighted andalso RC > 50 of
+                 io:format(user, "Test ~w starts~n", [RC]),
+
+                 case ?config(reset_gproc, Config) of
                      true ->
-                         io:format(user, "set race_weighted true~n", []),
-                         ?G:set_flags([{race_weighted, true}]);
+                         {[ok,ok,ok],[]} = rpc:multicall(Ns, application, ensure_started, [gproc]);
                      false ->
-                         io:format(user, "set race_weighted false~n", []),
-                         ?G:set_flags([{race_weighted, false}])
+                         lists:foreach(
+                           fun (N) ->
+                                   ok = rpc:call(N, application, ensure_started, [gproc]),
+                                   timer:sleep(250)
+                           end, Ns)
                  end,
 
-                 Testcase = proplists:get_value(testcase, Config),
-                 apply(?MODULE, Testcase, [Ns])
+                 Testcase = ?config(testcase, Config),
+                 apply(?MODULE, Testcase, [Ns]),
+
+                 timer:sleep(1000),
+                 io:format(user, "Test ~w ends~n", [RC]),
+
+                 case ?config(reset_gproc, Config) of
+                     true ->
+                         lists:foreach(
+                           fun (N) ->
+                                   ok = rpc:call(N, application, stop, [gproc])
+                           end, Ns);
+                     false -> ok
+                 end
          end
        ]),
 
@@ -189,6 +228,33 @@ t_read_everywhere(Key, Pid, Nodes, Exp, I) ->
        true ->
 	    ok
     end.
+
+t_master_dies([A,B,C] = Ns) ->
+    Na = ?T_NAME,
+    Nb = ?T_NAME,
+    Nc = ?T_NAME,
+    Pa = t_spawn_reg(A, Na),
+    Pb = t_spawn_reg(B, Nb),
+    Pc = t_spawn_reg(C, Nc),
+    L = rpc:call(A, gproc_dist, get_leader, []),
+    ?assertMatch(ok, t_lookup_everywhere(Na, Ns, Pa)),
+    ?assertMatch(ok, t_lookup_everywhere(Nb, Ns, Pb)),
+    ?assertMatch(ok, t_lookup_everywhere(Nc, Ns, Pc)),
+    {Nl, Pl} = case L of
+                   A -> {Na, Pa};
+                   B -> {Nb, Pb};
+                   C -> {Nc, Pc}
+               end,
+    ?assertMatch(true, rpc:call(A, gproc_dist, sync, [])),
+    ?assertMatch(ok, rpc:call(L, application, stop, [gproc])),
+    Names = [{Na,Pa}, {Nb,Pb}, {Nc,Pc}] -- [{Nl, Pl}],
+    RestNs = Ns -- [L],
+    %% ?assertMatch(true, rpc:call(hd(RestNs), gproc_dist, sync, [])),
+    ?assertMatch(true, try_sync(hd(RestNs), RestNs)),
+    ?assertMatch(ok, t_lookup_everywhere(Nl, RestNs, undefined)),
+    [?assertMatch(ok, t_lookup_everywhere(Nx, RestNs, Px))
+     || {Nx, Px} <- Names],
+    ok.
 
 read_result({badrpc, {'EXIT', {badarg, _}}}) -> badarg;
 read_result(R) -> R.
