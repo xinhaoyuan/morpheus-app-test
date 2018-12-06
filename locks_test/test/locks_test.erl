@@ -18,25 +18,26 @@ test_entry() ->
             false -> basicpos;
             _S -> list_to_atom(_S)
         end,
-    MConfig = [ monitor
-              , { fd_opts
-                , [ { scheduler
-                    , {Sched, []} }
-                  , verbose_final ] }
-              , {node, node1@localhost}
-              , {clock_limit, 600000}
-              , {clock_offset, 1539105131938}
-              , {aux_module, ?MODULE}
-              , stop_on_deadlock
-                %% , trace_send, trace_receive
-                %% , verbose_handle, verbose_ctl
-                %% , {trace_from_start, true}
-              ] ++ case os:getenv("SCOPED") of
-                       false -> [];
-                       "" -> [];
-                       _ -> [{scoped_weight, true}]
-                   end,
-    io:format(user, "Using sched ~w~n", [Sched]),
+    MConfig =
+        [ monitor
+        , { fd_opts
+          , [ { scheduler
+              , {Sched, []} }
+            , verbose_final ] }
+        , {node, node1@localhost}
+        , {clock_limit, 600000}
+        , {clock_offset, 1539105131938}
+        , {aux_module, ?MODULE}
+        , stop_on_deadlock
+          %% , trace_send, trace_receive
+          %% , verbose_handle, verbose_ctl
+          %% , {trace_from_start, true}
+        ]
+        ++ case os:getenv("ONLY_SEND") of
+               false -> [];
+               "" -> [];
+               _ -> [{only_schedule_send, true}]
+           end,
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [],
                     MConfig),
