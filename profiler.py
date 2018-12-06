@@ -39,7 +39,7 @@ for i in range(0, args.repeat):
     else:
         failed_counter += 1
 
-    sys.stdout.write("run {}: {} ({}/{})\n".format(i, succ, succ_counter, failed_counter))
+    sys.stdout.write("run {}: {} ({}/{})\n".format(i + 1, succ, succ_counter, failed_counter))
 
     if not args.hide:
         if (succ and not args.hide_true) or (not succ and not args.hide_false):
