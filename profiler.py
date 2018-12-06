@@ -5,18 +5,13 @@ import argparse
 import subprocess
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-e", type = str, action = "append", dest = "env", default = [])
 parser.add_argument("-r", type = int, action = "store", dest = "repeat", default = 1000)
 parser.add_argument("--hide", action = "store_true", dest = "hide")
+parser.add_argument("--hide-true", action = "store_true", dest = "hide_true")
+parser.add_argument("--hide-false", action = "store_true", dest = "hide_false")
+parser.add_argument("--split-output", action = "store_true", dest = "split_output")
 parser.add_argument("args", nargs = argparse.REMAINDER)
 args = parser.parse_args()
-
-env = os.environ.copy()
-for item in args.env:
-    tokens = str.split(item, "=")
-    if len(tokens) != 2:
-        continue
-    env[tokens[0]] = tokens[1]
 
 succ_counter = 0
 failed_counter = 0
@@ -27,12 +22,16 @@ if args.hide:
 for i in range(0, args.repeat):
     succ = None
     try:
-        if args.hide:
-            subprocess.check_call(args.args, env = env, stdout = out_f, stderr = err_f)
+        if args.split_output:
+            p = subprocess.Popen(args.args, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
         else:
-            subprocess.check_call(args.args, env = env)
-        succ = True
+            p = subprocess.Popen(args.args, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+
+        stdout, stderr = p.communicate()
+
+        succ = p.returncode == 0
     except subprocess.CalledProcessError as x:
+        sys.stdout.write("Got exception {}\n".format(x))
         succ = False
 
     if succ:
@@ -40,6 +39,15 @@ for i in range(0, args.repeat):
     else:
         failed_counter += 1
 
-    print("run {}: {} ({}/{})".format(i, succ, succ_counter, failed_counter))
+    sys.stdout.write("run {}: {} ({}/{})\n".format(i, succ, succ_counter, failed_counter))
+
+    if not args.hide:
+        if (succ and not args.hide_true) or (not succ and not args.hide_false):
+            sys.stdout.write("==== OUTPUT ====\n")
+            sys.stdout.buffer.write(stdout)
+            if args.split_output:
+                sys.stdout.write("\n==== STDERR ====\n")
+                sys.stdout.buffer.write(stderr)
+            sys.stdout.write("\n")
 
 print(args)
