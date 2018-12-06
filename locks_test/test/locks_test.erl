@@ -38,7 +38,7 @@ test_entry() ->
                _ -> [{only_schedule_send, true}]
            end,
     {Ctl, MRef} = morpheus_sandbox:start(
-                    ?MODULE, t_sandbox_entry, [],
+                    ?MODULE, t_sandbox_entry, [Config],
                     MConfig),
     success = receive {'DOWN', MRef, _, _, Reason} -> Reason end,
     ok.
