@@ -7,31 +7,30 @@
 all_test_() ->
     {timeout, 120, ?_test( test_entry() )}.
 
-is_scoped(locks_agent) ->
-    true;
-is_scoped(_) ->
-    false.
+-define(config(Key, Data), proplists:get_value(Key, Data)).
+
+try_getenv(Name, Handler, Default) ->
+    case os:getenv(Name) of
+        false ->
+            Default;
+        S -> Handler(S)
+    end.
 
 test_entry() ->
-    Sched =
-        case os:getenv("SCHED") of
-            false -> basicpos;
-            _S -> list_to_atom(_S)
-        end,
+    Config =
+        [ {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
+        , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
+        ],
     MConfig =
         [ monitor
         , { fd_opts
           , [ { scheduler
-              , {Sched, []} }
+              , {?config(sched, Config), []} }
             , verbose_final ] }
         , {node, node1@localhost}
-        , {clock_limit, 600000}
+        , {clock_limit, 5000 + 5000 * ?config(repeat, Config)}
         , {clock_offset, 1539105131938}
-        , {aux_module, ?MODULE}
         , stop_on_deadlock
-          %% , trace_send, trace_receive
-          %% , verbose_handle, verbose_ctl
-          %% , {trace_from_start, true}
         ]
         ++ case os:getenv("ONLY_SEND") of
                false -> [];
@@ -47,13 +46,13 @@ test_entry() ->
 -define(G, morpheus_guest).
 -define(GH, morpheus_guest_helper).
 
-t_sandbox_entry() ->
+t_sandbox_entry(Config) ->
     ?GH:bootstrap(),
 
     ?G:set_flags([{tracing, true}]),
     ok = application:start(locks),
     ?GH:sync_task(
-       [ repeat, 1
+       [ repeat, ?config(repeat, Config)
        , fun t1/0
        ]),
     ?G:exit_with(success).
