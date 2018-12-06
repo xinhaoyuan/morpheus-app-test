@@ -39,8 +39,6 @@ for i in range(0, args.repeat):
     else:
         failed_counter += 1
 
-    sys.stdout.write("run {}: {} ({}/{})\n".format(i + 1, succ, succ_counter, failed_counter))
-
     if not args.hide:
         if (succ and not args.hide_true) or (not succ and not args.hide_false):
             sys.stdout.write("==== OUTPUT ====\n")
@@ -49,5 +47,6 @@ for i in range(0, args.repeat):
                 sys.stdout.write("\n==== STDERR ====\n")
                 sys.stdout.buffer.write(stderr)
             sys.stdout.write("\n")
+    sys.stdout.write("run {}: {} ({}/{})\n".format(i + 1, succ, succ_counter, failed_counter))
 
 print(args)
