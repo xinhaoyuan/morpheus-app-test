@@ -114,7 +114,7 @@ test_sandbox_entry(Config) ->
               end, Ns)
     end,
 
-    ECBegin = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
+    {ok, ECBegin} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
 
     Tab = ets:new(test_tab, [public]),
 
@@ -157,7 +157,7 @@ test_sandbox_entry(Config) ->
 
     ets:delete(Tab),
 
-    ECEnd = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
+    {ok, ECEnd} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
     io:format(user, "Event counter = ~p~n", [ECEnd - ECBegin]),
 
     ?G:exit_with(success),

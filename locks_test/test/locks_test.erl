@@ -51,10 +51,14 @@ t_sandbox_entry(Config) ->
 
     ?G:set_flags([{tracing, true}]),
     ok = application:start(locks),
+
+    {ok, ECBegin} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
     ?GH:sync_task(
        [ repeat, ?config(repeat, Config)
        , fun t1/0
        ]),
+    {ok, ECEnd} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
+    io:format(user, "Event counter = ~p~n", [ECEnd - ECBegin]),
     ?G:exit_with(success).
 
 t1() ->

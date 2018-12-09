@@ -97,6 +97,7 @@ test_sandbox_entry(Config) ->
     init_per_suite(Config),
 
     ?G:set_flags([{tracing, true}]),
+    {ok, ECBegin} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
     ?GH:sync_task(
        [ repeat, ?config(repeat, Config)
        , fun () ->
@@ -111,6 +112,9 @@ test_sandbox_entry(Config) ->
                                ])
          end
        ]),
+
+    {ok, ECEnd} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
+    io:format(user, "Event counter = ~p~n", [ECEnd - ECBegin]),
 
     end_per_suite(Config),
 

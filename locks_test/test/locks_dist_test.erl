@@ -63,6 +63,7 @@ t_sandbox_entry(Config) ->
     tab = ets:new(tab, [named_table, public]),
     ets:insert(tab, {test_counter, 0}),
 
+    {ok, ECBegin} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
     ?GH:sync_task(
        [ repeat, ?config(repeat, Config)
        , fun () ->
@@ -101,5 +102,7 @@ t_sandbox_entry(Config) ->
                  ok
          end
        ]),
+    {ok, ECEnd} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
+    io:format(user, "Event counter = ~p~n", [ECEnd - ECBegin]),
 
     ?G:exit_with(success).
