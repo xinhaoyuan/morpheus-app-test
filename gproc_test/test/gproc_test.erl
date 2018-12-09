@@ -18,29 +18,33 @@ string_to_term(String) ->
 -define(config(Key, Data), proplists:get_value(Key, Data)).
 
 test_entry() ->
-    Config = [ {repeat,
-                case os:getenv("REPEAT") of
-                    false -> 100;
-                    _R -> list_to_integer(_R)
-                end}
-             , {testcase,
-                case os:getenv("TESTCASE") of
-                    false -> t_simple_ensure_other;
-                    _T -> list_to_atom(_T)
-                end}
-             , {nodes, [node1@localhost, node2@localhost, node3@localhost]}
-             , {sched,
-                case os:getenv("SCHED") of
-                    false -> basicpos;
-                    _S -> list_to_atom(_S)
-                end}
-             , {reset_gproc,
-                case os:getenv("RESET_GPROC") of
-                    false -> false;
-                    "" -> false;
-                    _ -> true
-                end}
-             ],
+    Config0 =
+        [ {repeat,
+           case os:getenv("REPEAT") of
+               false -> 100;
+               _R -> list_to_integer(_R)
+           end}
+        , {testcase,
+           case os:getenv("TESTCASE") of
+               false -> t_simple_ensure_other;
+               _T -> list_to_atom(_T)
+           end}
+        , {nodes, [node1@localhost, node2@localhost, node3@localhost]}
+        , {sched,
+           case os:getenv("SCHED") of
+               false -> basicpos;
+               _S -> list_to_atom(_S)
+           end}
+        ],
+    Config =
+        Config0
+        ++ [{reset_gproc,
+             case ?config(testcase, Config0) of
+                 t_simple_ensure_other -> true;
+                 t_simple_reg -> true;
+                 t_master_dies -> false;
+                 _ -> false
+             end}],
     io:format(user, "Test config = ~p~n", [Config]),
     case os:getenv("TEST_WD") of
         false -> ok;
@@ -109,7 +113,9 @@ test_sandbox_entry(Config) ->
                       timer:sleep(250)
               end, Ns)
     end,
-    
+
+    ECBegin = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
+
     Tab = ets:new(test_tab, [public]),
 
     UseRaceWeighted = proplists:get_value(use_race_weighted, Config),
@@ -150,6 +156,9 @@ test_sandbox_entry(Config) ->
        ]),
 
     ets:delete(Tab),
+
+    ECEnd = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
+    io:format(user, "Event counter = ~p~n", [ECEnd - ECBegin]),
 
     ?G:exit_with(success),
     ok.
