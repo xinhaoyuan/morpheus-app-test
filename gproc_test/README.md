@@ -8,6 +8,7 @@ There are two kinds of errors can be found.
 
 # Env variables
 
+`ONLY_SEND` - tell morpheus to only delay message/signal sending.
 `REPEAT` - how many times the test case is repeated.
 `TESTCASE` - one of `t_master_dies`, `t_simple_reg`, or `t_simple_ensure_other`.
 `SCHED` - scheduler name used in firedrill. It usually has one of `basicpos`, `pos`, or `rw`.
