@@ -32,9 +32,6 @@ if len(cmd) == 0:
 
 succ_counter = 0
 failed_counter = 0
-if args.hide:
-    out_f = open(os.devnull, "w")
-    err_f = out_f
 
 for i in range(0, args.repeat):
     result = None
