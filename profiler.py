@@ -7,23 +7,29 @@ import tempfile
 
 parser = argparse.ArgumentParser(
     description =
-    "Repeatly run a command and collect result based on the return code (0: succ, 1: failed, other: unknown)"
+    "Repeatly run a command and collect result based on the return code - 0: success, 1: failed, other: unknown."
 )
-parser.add_argument("-r", type = int, action = "store", dest = "repeat", default = 1000)
-parser.add_argument("--hide", action = "store_true", dest = "hide")
-parser.add_argument("--hide-true", action = "store_true", dest = "hide_true")
-parser.add_argument("--hide-false", action = "store_true", dest = "hide_false")
-parser.add_argument("--hide-unknown", action = "store_true", dest = "hide_unknown")
+parser.add_argument("-r", type = int, action = "store", dest = "repeat", default = 1000,
+                    help = "number of time to repeat")
+parser.add_argument("--hide", action = "store_true", dest = "hide",
+                    help = "to hide all output")
+parser.add_argument("--hide-true", action = "store_true", dest = "hide_true",
+                    help = "to hide output when the result is success (i.e. 0)")
+parser.add_argument("--hide-false", action = "store_true", dest = "hide_false",
+                    help = "hide output when the result is failed (i.e. 1)")
+parser.add_argument("--hide-unknown", action = "store_true", dest = "hide_unknown",
+                    help = "to hide output when the result is unknown")
 parser.add_argument("--refine-by", nargs = "+", action = "store", type = str, dest = "refine_by",
                     help =
-                    "Command args prefix for refining the result. "
+                    "command args prefix for refining the result. "
                     "When specified, the prefix appended with the return code will be executed, "
                     "where STDIN will be fed with STDOUT of the original command")
-parser.add_argument("--split-output", action = "store_true", dest = "split_output")
-parser.add_argument("args", nargs = argparse.REMAINDER)
+parser.add_argument("--split-output", action = "store_true", dest = "split_output",
+                    help = "to split stdout and stderr")
+parser.add_argument("command_args", nargs = argparse.REMAINDER)
 args = parser.parse_args()
 
-cmd = args.args
+cmd = args.command_args
 if len(cmd) > 0 and cmd[0] == "--":
     cmd = cmd[1:]
 if len(cmd) == 0:
