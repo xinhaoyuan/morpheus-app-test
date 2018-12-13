@@ -56,7 +56,11 @@ for i in range(0, args.repeat):
 
     if args.refine_by is not None:
         refine_cmd = args.refine_by.copy()
-        refine_cmd.append(str(result))
+        for i in range(0, len(refine_cmd)):
+            if refine_cmd[i] == "%":
+                refine_cmd[i] = str(result)
+                break
+
         try:
             with tempfile.NamedTemporaryFile() as tmp:
                 tmp.file.write(stdout)
