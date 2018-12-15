@@ -57,6 +57,7 @@ test_entry() ->
                      ),
               os:cmd(Cmd)
       end, ?config(nodes, Config)),
+    test_state_tab = ets:new(test_state_tab, [public, named_table]),
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, test_sandbox_entry, [Config],
                     [ monitor
@@ -77,7 +78,8 @@ test_entry() ->
                     , {node, master@localhost}
                     , {clock_limit, 10000 + ?config(repeat, Config) * 10000}
                     %% , trace_receive, trace_send
-                    %% , verbose_handle, verbose_ctl
+                    %% , verbose_handle
+                    %% , verbose_ctl
                     %% , {trace_from_start, true}
                     ]
                     ++ case os:getenv("ONLY_SEND") of
