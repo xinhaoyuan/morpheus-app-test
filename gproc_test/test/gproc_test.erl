@@ -77,6 +77,7 @@ test_entry() ->
                     , stop_on_deadlock
                     , {node, master@localhost}
                     , {clock_limit, 10000 + ?config(repeat, Config) * 10000}
+                    , {tracer_opts, [{acc_filename, "acc.dat"}, {state_coverage, true}]}
                     %% , trace_receive, trace_send
                     %% , verbose_handle
                     %% , verbose_ctl
