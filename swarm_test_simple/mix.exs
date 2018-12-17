@@ -21,7 +21,10 @@ defmodule SwarmTestSimple.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:swarm, git: "https://github.com/bitwalker/swarm.git", runtime: false}
+      # Version 1
+      # {:swarm, git: "https://github.com/bitwalker/swarm.git", ref: "738decbc9cfcc4b0de80b6a4f72b092b01f4c8f7", runtime: false}
+      # Version 2 (20181217)
+      {:swarm, git: "https://github.com/bitwalker/swarm.git", ref: "14302120fdec9b16c3368df6dd143b583d5d901e", runtime: false}
     ]
   end
 end

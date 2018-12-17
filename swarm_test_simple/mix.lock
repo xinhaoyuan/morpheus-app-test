@@ -1,5 +1,5 @@
 %{
   "gen_state_machine": {:hex, :gen_state_machine, "2.0.4", "cc31749b8ee50d42c8db7d96c85637c4c9fdc7a007145c8aa2f371c89148a6ca", [:mix], [], "hexpm"},
   "libring": {:hex, :libring, "1.4.0", "41246ba2f3fbc76b3971f6bce83119dfec1eee17e977a48d8a9cfaaf58c2a8d6", [:mix], [], "hexpm"},
-  "swarm": {:git, "https://github.com/bitwalker/swarm.git", "738decbc9cfcc4b0de80b6a4f72b092b01f4c8f7", []},
+  "swarm": {:git, "https://github.com/bitwalker/swarm.git", "26e69c5f2754ec152a0efcccbae59c71417df0a1", [ref: "26e69c5f2754ec152a0efcccbae59c71417df0a1"]},
 }
