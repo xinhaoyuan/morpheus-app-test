@@ -1,5 +1,5 @@
 diff --git a/src/gen_leader.erl b/src/gen_leader.erl
-index fe70d99..d554e50 100644
+index fe70d99..61bbb21 100644
 --- a/src/gen_leader.erl
 +++ b/src/gen_leader.erl
 @@ -531,6 +531,9 @@ init_it(Starter,Parent,Name,Mod,{UnsortedCandidateNodes,OptArgs,Arg},Options) ->
@@ -7,7 +7,7 @@ index fe70d99..d554e50 100644
  safe_loop(#server{mod = Mod, state = State} = Server, Role,
            #election{name = Name} = E, _PrevMsg) ->
 +    morpheus_guest:raw_apply(ets, delete, [test_state_tab, {state, self()}]),
-+    morpheus_guest:raw_apply(ets, insert, [test_state_tab, {{state, self()}, {safe_loop, Server, Role, Name}}]),
++    morpheus_guest:raw_apply(ets, insert, [test_state_tab, {{state, self()}, {safe_loop, Server, Role, E}}]),
 +    morpheus_guest:report_state(lists:sort(morpheus_guest:raw_apply(ets, match, [test_state_tab, '$1']))),
      receive
          {system, From, Req} ->
@@ -17,7 +17,7 @@ index fe70d99..d554e50 100644
               debug = Debug} = Server, Role,
       #election{name = Name} = E, _PrevMsg) ->
 +    morpheus_guest:raw_apply(ets, delete, [test_state_tab, {state, self()}]),
-+    morpheus_guest:raw_apply(ets, insert, [test_state_tab, {{state, self()}, {loop, Server, Role, Name}}]),
++    morpheus_guest:raw_apply(ets, insert, [test_state_tab, {{state, self()}, {loop, Server, Role, E}}]),
 +    morpheus_guest:report_state(lists:sort(morpheus_guest:raw_apply(ets, match, [test_state_tab, '$1']))),
      receive
          Msg ->
