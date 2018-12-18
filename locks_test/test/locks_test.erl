@@ -71,13 +71,18 @@ test_entry() ->
         , {clock_offset, 1539105131938}
         , {aux_module, ?MODULE}
         , stop_on_deadlock
-        , {tracer_opts, [{acc_filename, "acc.dat"}, {state_coverage, true}]}
         ]
         ++ case os:getenv("ONLY_SEND") of
                false -> [];
                "" -> [];
                _ -> [{only_schedule_send, true}]
-           end,
+           end
+        ++ case os:getenv("STATE_COVERAGE") of
+               false -> [];
+               "" -> [];
+               _ -> [{tracer_opts, [{acc_filename, "acc.dat"}, {acc_fork_period, 100}, {state_coverage, true}]}]
+           end
+        ,
     test_state = ets:new(test_state, [public, named_table]),
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [Config],

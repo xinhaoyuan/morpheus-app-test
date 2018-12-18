@@ -77,7 +77,6 @@ test_entry() ->
                     , stop_on_deadlock
                     , {node, master@localhost}
                     , {clock_limit, 10000 + ?config(repeat, Config) * 10000}
-                    , {tracer_opts, [{acc_filename, "acc.dat"}, {state_coverage, true}]}
                     %% , trace_receive, trace_send
                     %% , verbose_handle
                     %% , verbose_ctl
@@ -87,6 +86,11 @@ test_entry() ->
                            false -> [];
                            "" -> [];
                            _ -> [{only_schedule_send, true}]
+                       end
+                    ++ case os:getenv("STATE_COVERAGE") of
+                           false -> [];
+                           "" -> [];
+                           _ -> [{tracer_opts, [{acc_filename, "acc.dat"}, {acc_fork_period, 100}, {state_coverage, true}]}]
                        end
                    ),
     success = receive {'DOWN', MRef, _, _, Reason} -> Reason end,
