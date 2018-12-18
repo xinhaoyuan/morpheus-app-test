@@ -3,6 +3,45 @@
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("morpheus/include/morpheus.hrl").
+
+%% Override gen_server loop entry to extract states
+?MORPHEUS_CB_TO_OVERRIDE(gen_server, loop, 7) ->
+    {true, callback};
+?MORPHEUS_CB_TO_OVERRIDE(locks_agent, loop, 1) ->
+    {true, callback};
+?MORPHEUS_CB_TO_OVERRIDE(_, _, _) ->
+    false.
+
+?MORPHEUS_CB_HANDLE_OVERRIDE(gen_server, NewModule, loop, OrigLoop, Args, _Ann) ->
+    %% This is a bit of hacky to extract info from the arguments
+    %% The reporting interface in callback is not stable yet ...
+    [_, Name, State, Mod | _] = Args,
+    case Mod of
+        locks_server ->
+            ets:delete(test_state, self()),
+            ets:insert(test_state, {self(), State}),
+            ToReport = lists:sort(ets:match(test_state, '$1')),
+            %% UGLY! ...
+            morpheus_sandbox:call_ctl(morpheus_sandbox:get_ctl(), undefined, {nodelay, {guest_report_state, ToReport}}),
+            %% io:format(user, "report state ~p~n", [ToReport]),
+            ok;
+        %% locks_agent seems to have its own loop ...
+        %% locks_agent -> ok;
+        _ -> ok
+    end,
+    %% forward to the original code
+    apply(NewModule, OrigLoop, Args);
+?MORPHEUS_CB_HANDLE_OVERRIDE(locks_agent, NewModule, loop, OrigLoop, Args, _Ann) ->
+    [State] = Args,
+    ets:delete(test_state, self()),
+    ets:insert(test_state, {self(), State}),
+    ToReport = lists:sort(ets:match(test_state, '$1')),
+    %% UGLY! ...
+    morpheus_sandbox:call_ctl(morpheus_sandbox:get_ctl(), undefined, {nodelay, {guest_report_state, ToReport}}),
+    %% io:format(user, "report state ~p~n", [ToReport]),
+    %% forward to the original code
+    apply(NewModule, OrigLoop, Args).
 
 all_test_() ->
     {timeout, 120, ?_test( test_entry() )}.
@@ -30,13 +69,16 @@ test_entry() ->
         , {node, node1@localhost}
         , {clock_limit, 5000 + 5000 * ?config(repeat, Config)}
         , {clock_offset, 1539105131938}
+        , {aux_module, ?MODULE}
         , stop_on_deadlock
+        , {tracer_opts, [{acc_filename, "acc.dat"}, {state_coverage, true}]}
         ]
         ++ case os:getenv("ONLY_SEND") of
                false -> [];
                "" -> [];
                _ -> [{only_schedule_send, true}]
            end,
+    test_state = ets:new(test_state, [public, named_table]),
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [Config],
                     MConfig),
