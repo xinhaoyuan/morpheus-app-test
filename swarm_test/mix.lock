@@ -4,5 +4,5 @@
   "libring": {:hex, :libring, "1.4.0", "41246ba2f3fbc76b3971f6bce83119dfec1eee17e977a48d8a9cfaaf58c2a8d6", [:mix], [], "hexpm"},
   "morpheus": {:git, "https://github.com/xinhaoyuan/morpheus.git", "2c1508108deb1e1508a6eae8d739464181d6ae44", []},
   "parse_trans": {:git, "https://github.com/uwiger/parse_trans.git", "76abb347c3c1d00fb0ccf9e4b43e22b3d2288484", []},
-  "swarm": {:git, "https://github.com/bitwalker/swarm.git", "738decbc9cfcc4b0de80b6a4f72b092b01f4c8f7", [ref: "738decbc9cfcc4b0de80b6a4f72b092b01f4c8f7"]},
+  "swarm": {:git, "https://github.com/bitwalker/swarm.git", "14302120fdec9b16c3368df6dd143b583d5d901e", [ref: "14302120fdec9b16c3368df6dd143b583d5d901e"]},
 }

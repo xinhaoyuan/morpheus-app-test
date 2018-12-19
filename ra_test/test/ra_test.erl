@@ -90,7 +90,8 @@ test_entry() ->
              , {server_id5, {tserver5, node()}}
              , {uid5, <<"node5_uid">>}
              , {cluster_name, <<"cluster">>}
-             , {priv_dir, "/tmp/ra"}
+             %% , {priv_dir, "/tmp/ra"}
+             , {priv_dir, try_getenv("RA_PRIV_DIR", fun (I) -> I end, "ra_data")}
              , {testcase, try_getenv("TESTCASE", fun list_to_atom/1, badkey_previous_cluster)}
              , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
              , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
@@ -172,6 +173,42 @@ test_sandbox_entry(Config) ->
     ets:delete(test),
 
     ?G:exit_with(success),
+    ok.
+
+simple_state_coverage(Config) ->
+    ClusterName = ?config(cluster_name, Config),
+    PrivDir = ?config(priv_dir, Config),
+    ServerId1 = ?config(server_id, Config),
+    ServerId2 = ?config(server_id2, Config),
+    ServerId3 = ?config(server_id3, Config),
+    Peers = [ServerId1, ServerId2, ServerId3],
+    ok = start_cluster(ClusterName, Peers),
+    timer:sleep(10000),
+
+    [ begin
+          UId = ra_directory:uid_of(Name),
+          ?assert(filelib:is_dir(filename:join([ra_env:data_dir(), UId])))
+      end || {Name, _} <- Peers],
+
+    ?GH:sync_task([ par
+                  , fun () ->
+                            catch ra:trigger_election(ServerId1)
+                    end
+                  , fun () ->
+                            catch ra:trigger_election(ServerId2)
+                    end
+                  , fun () ->
+                            catch ra:trigger_election(ServerId3)
+                    end
+                  , fun () ->
+                            catch ra:remove_member(ServerId1, ServerId2),
+                            catch ra:add_member(ServerId1, ServerId2)
+                    end
+                  , fun () ->
+                            catch enqueue(ServerId3, msg1)
+                    end
+                  ]),
+    timer:sleep(10000),
     ok.
 
 %% fixed in 4c0c57b7c0ca793c7fdf98d7499f73593473decc
