@@ -4,6 +4,58 @@
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("morpheus/include/morpheus.hrl").
+
+?MORPHEUS_CB_TO_OVERRIDE(gen_statem, enter, 7) ->
+    {true, callback};
+?MORPHEUS_CB_TO_OVERRIDE(gen_statem, loop_event, 6) ->
+    {true, callback};
+?MORPHEUS_CB_TO_OVERRIDE(_, _, _) ->
+    false.
+
+?MORPHEUS_CB_HANDLE_OVERRIDE(gen_statem, NewModule, enter, NewEntry, Args, _Ann) ->
+    %% This is a bit of hacky to extract info from the arguments
+    %% The reporting interface in callback is not stable yet ...
+    [Mod, Opts, StateName, State, Server | _] = Args,
+    {local, Name} = Server,
+    case Mod of
+        ra_server_proc ->
+            ets:delete(test_state, Name),
+            ets:insert(test_state, {Name, {StateName, State}}),
+            ToReport = lists:sort(ets:match(test_state, '$1')),
+            %% UGLY! ...
+            morpheus_sandbox:call_ctl(morpheus_sandbox:get_ctl(), undefined, {nodelay, ?cci_guest_report_state(ToReport)}),
+            ok;
+        %% locks_agent seems to have its own loop ...
+        %% locks_agent -> ok;
+        _ ->
+            ok
+    end,
+    %% forward to the original code
+    apply(NewModule, NewEntry, Args);
+?MORPHEUS_CB_HANDLE_OVERRIDE(gen_statem, NewModule, loop_event, NewEntry, Args, _Ann) ->
+    %% This is a bit of hacky to extract info from the arguments
+    %% The reporting interface in callback is not stable yet ...
+    [_, _, GSMState | _] = Args,
+    Mod = element(4, GSMState),
+    Name = element(5, GSMState),
+    StateName = element(6, GSMState),
+    State = element(7, GSMState),
+    case Mod of
+        ra_server_proc ->
+            ets:delete(test_state, Name),
+            ets:insert(test_state, {Name, {StateName, State}}),
+            ToReport = lists:sort(ets:match(test_state, '$1')),
+            %% UGLY! ...
+            morpheus_sandbox:call_ctl(morpheus_sandbox:get_ctl(), undefined, {nodelay, ?cci_guest_report_state(ToReport)}),
+            ok;
+        %% locks_agent seems to have its own loop ...
+        %% locks_agent -> ok;
+        _ ->
+            ok
+    end,
+    %% forward to the original code
+    apply(NewModule, NewEntry, Args).
 
 all_test_() ->
     {timeout, 3600, ?_test( test_entry() )}.
@@ -12,13 +64,19 @@ all_test_() ->
 -define(S, morpheus_sandbox).
 -define(GH, morpheus_guest_helper).
 -define(G, morpheus_guest).
--define(REPEAT, 100).
 
 string_to_term(String) ->
     {ok, Tokens, _EndLine} = erl_scan:string(String),
     {ok, AbsForm} = erl_parse:parse_exprs(Tokens),
     {value, Value, _Bs} = erl_eval:exprs(AbsForm, erl_eval:new_bindings()),
     Value.
+
+try_getenv(Name, Handler, Default) ->
+    case os:getenv(Name) of
+        false ->
+            Default;
+        S -> Handler(S)
+    end.
 
 test_entry() ->
     Config = [ {server_id,  {tserver1, node()}}
@@ -33,20 +91,18 @@ test_entry() ->
              , {uid5, <<"node5_uid">>}
              , {cluster_name, <<"cluster">>}
              , {priv_dir, "/tmp/ra"}
-             , {testcase,
-                case os:getenv("TESTCASE") of
-                    false -> badkey_previous_cluster;
-                    S -> list_to_atom(S)
-                end}
+             , {testcase, try_getenv("TESTCASE", fun list_to_atom/1, badkey_previous_cluster)}
+             , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
+             , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
              ],
-
+    test_state = ets:new(test_state, [public, named_table]),
     {Ctl, MRef} =
         ?S:start(
            ?MODULE, test_sandbox_entry, [Config],
            [ monitor
            , {fd_opts,
               [{scheduler,
-                { basicpos
+                { ?config(sched, Config)
                 , case os:getenv("SEED_TERM") of
                       false -> [];
                       Term -> [{seed, string_to_term(Term)}]
@@ -54,12 +110,19 @@ test_entry() ->
                 }}]}
            , {heartbeat, once}
            , {clock_offset, 1538099922306}
-           , {clock_limit, ?REPEAT * 30000}
+           , {clock_limit, ?config(repeat, Config) * 30000 + 30000}
            , stop_on_deadlock
+           , {aux_module, ?MODULE}
            %% , trace_send, trace_receive
            %% , verbose_handle, verbose_ctl
            %% , {trace_from_start, true}
-           ]),
+           ]
+           ++ case os:getenv("STATE_COVERAGE") of
+                  false -> [];
+                  "" -> [];
+                  _ -> [{tracer_opts, [{acc_filename, "acc.dat"}, {acc_fork_period, 100}, {state_coverage, true}]}]
+              end
+          ),
     ?assertEqual(success, receive {'DOWN', MRef, _, _, Reason} -> Reason end),
     ok.
 
@@ -95,10 +158,10 @@ test_sandbox_entry(Config) ->
     ets:new(test, [public, named_table]),
     ets:insert(test, {counter, 0}),
 
-    Case = proplists:get_value(testcase, Config),
+    Case = ?config(testcase, Config),
 
     ?GH:sync_task(
-       [repeat, ?REPEAT,
+       [repeat, ?config(repeat, Config),
         fun () ->
                 TC = ets:update_counter(test, counter, 1),
                 io:format(user, "Test ~w~n", [TC]),

@@ -1,0 +1,58 @@
+diff --git a/src/ra.erl b/src/ra.erl
+index c3c2da5..8e7149a 100644
+--- a/src/ra.erl
++++ b/src/ra.erl
+@@ -242,7 +242,14 @@ start_cluster(ClusterName, Machine, ServerIds) ->
+     ok | {error, term()}.
+ start_server(ClusterName, ServerId, Machine, ServerIds) ->
+     Prefix = ra_lib:derive_safe_string(ra_lib:to_binary(ClusterName), 4),
+-    UId = ra_lib:make_uid(string:uppercase(Prefix)),
++    %% UId = ra_lib:make_uid(string:uppercase(Prefix)),
++    {Name, _} = ServerId,
++    UId = list_to_binary(
++            string:uppercase(
++              Prefix
++              ++ ra_lib:derive_safe_string(
++                   ra_lib:to_binary(
++                     atom_to_list(Name)), 8))),
+     Conf = #{cluster_name => ClusterName,
+              id => ServerId,
+              uid => UId,
+diff --git a/src/ra_server.erl b/src/ra_server.erl
+index c299d83..16d8780 100644
+--- a/src/ra_server.erl
++++ b/src/ra_server.erl
+@@ -329,6 +329,10 @@ handle_leader({PeerId, #append_entries_reply{success = false,
+                                              last_index = LastIdx,
+                                              last_term = LastTerm}},
+               State0 = #{id := Id, cluster := Nodes, log := Log0}) ->
++    case maps:is_key(PeerId, Nodes) of
++        true -> ok;
++        false -> catch morpheus_guest:exit_with(badmatch)
++    end,
+     #{PeerId := Peer0 = #{match_index := MI,
+                           next_index := NI}} = Nodes,
+     % if the last_index exists and has a matching term we can forward
+@@ -1658,6 +1662,10 @@ pre_append_log_follower({Idx, Term, Cmd} = Entry,
+                          cluster_index_term => {Idx, Term}}};
+         _ ->
+             % revert back to previous cluster
++            case maps:is_key(previous_cluster, State) of
++                true -> ok;
++                false -> catch morpheus_guest:exit_with(badkey_previous_cluster)
++            end,
+             {PrevIdx, PrevTerm, PrevCluster} = maps:get(previous_cluster,
+                                                         State),
+             State1 = State#{cluster => PrevCluster,
+diff --git a/src/ra_server_proc.erl b/src/ra_server_proc.erl
+index c4e0abf..e9c833d 100644
+--- a/src/ra_server_proc.erl
++++ b/src/ra_server_proc.erl
+@@ -880,6 +880,7 @@ handle_effect(_, {reply, Reply}, {call, From}, State, Actions) ->
+     ok = gen_statem:reply(From, Reply),
+     {State, Actions};
+ handle_effect(_, {reply, Reply}, EvtType, _, _) ->
++    catch morpheus_guest:exit_with(undefined_reply),
+     exit({undefined_reply, Reply, EvtType});
+ handle_effect(leader, {send_snapshot, To, {SnapState, Id, Term}}, _,
+               #state{server_state = SS0,
