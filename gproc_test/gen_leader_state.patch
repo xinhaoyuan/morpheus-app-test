@@ -1,20 +1,29 @@
 diff --git a/src/gen_leader.erl b/src/gen_leader.erl
-index fe70d99..3464906 100644
+index fe70d99..7469351 100644
 --- a/src/gen_leader.erl
 +++ b/src/gen_leader.erl
-@@ -530,7 +530,10 @@ init_it(Starter,Parent,Name,Mod,{UnsortedCandidateNodes,OptArgs,Arg},Options) ->
+@@ -530,7 +530,19 @@ init_it(Starter,Parent,Name,Mod,{UnsortedCandidateNodes,OptArgs,Arg},Options) ->
  % in e.g. a callback module, are postponed until the (re)election\
  % is complete.
  safe_loop(#server{mod = Mod, state = State} = Server, Role,
 -          #election{name = Name} = E, _PrevMsg) ->
 +          #election{name = Name, nextel = Clock} = E, _PrevMsg) ->
 +    morpheus_guest:raw_apply(ets, delete, [test_state_tab, {state, self()}]),
-+    morpheus_guest:raw_apply(ets, insert, [test_state_tab, {{state, self()}, {safe_loop, Server, Clock, Role, E}}]),
++    morpheus_guest:raw_apply(ets, insert, [test_state_tab, {{state, self()}, {safe_loop, Server, Role, E}}]),
++    morpheus_guest:raw_apply(
++      ets, insert,
++      {gclock,
++       case morpheus_guest:raw_apply(ets, lookup, [test_state_tab, gclock]) of
++           [] -> Clock;
++           [{gclock, OldClock}] ->
++               morpheus_guest:raw_apply(ets, delete, [test_state_tab, gclock]),
++               max(Clock, OldClock)
++       end}),
 +    morpheus_guest:report_state(lists:sort(morpheus_guest:raw_apply(ets, match, [test_state_tab, '$1']))),
      receive
          {system, From, Req} ->
              #server{parent = Parent, debug = Debug} = Server,
-@@ -804,7 +807,10 @@ loop(#server{parent = Parent,
+@@ -804,7 +816,19 @@ loop(#server{parent = Parent,
               mod = Mod,
               state = State,
               debug = Debug} = Server, Role,
@@ -22,6 +31,15 @@ index fe70d99..3464906 100644
 +     #election{name = Name, nextel = Clock} = E, _PrevMsg) ->
 +    morpheus_guest:raw_apply(ets, delete, [test_state_tab, {state, self()}]),
 +    morpheus_guest:raw_apply(ets, insert, [test_state_tab, {{state, self()}, {loop, Server, Clock, Role, E}}]),
++    morpheus_guest:raw_apply(
++      ets, insert,
++      {gclock,
++       case morpheus_guest:raw_apply(ets, lookup, [test_state_tab, gclock]) of
++           [] -> Clock;
++           [{gclock, OldClock}] ->
++               morpheus_guest:raw_apply(ets, delete, [test_state_tab, gclock]),
++               max(Clock, OldClock)
++       end}),
 +    morpheus_guest:report_state(lists:sort(morpheus_guest:raw_apply(ets, match, [test_state_tab, '$1']))),
      receive
          Msg ->
