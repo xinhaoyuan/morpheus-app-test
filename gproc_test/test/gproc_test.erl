@@ -17,24 +17,19 @@ string_to_term(String) ->
 
 -define(config(Key, Data), proplists:get_value(Key, Data)).
 
+try_getenv(Name, Handler, Default) ->
+    case os:getenv(Name) of
+        false ->
+            Default;
+        S -> Handler(S)
+    end.
+
 test_entry() ->
     Config0 =
-        [ {repeat,
-           case os:getenv("REPEAT") of
-               false -> 100;
-               _R -> list_to_integer(_R)
-           end}
-        , {testcase,
-           case os:getenv("TESTCASE") of
-               false -> t_simple_ensure_other;
-               _T -> list_to_atom(_T)
-           end}
+        [ {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
+        , {testcase, try_getenv("TESTCASE", fun list_to_atom/1, t_simple_ensure_other)}
         , {nodes, [node1@localhost, node2@localhost, node3@localhost]}
-        , {sched,
-           case os:getenv("SCHED") of
-               false -> basicpos;
-               _S -> list_to_atom(_S)
-           end}
+        , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         ],
     Config =
         Config0
@@ -67,10 +62,9 @@ test_entry() ->
                         , { scheduler
                           , {?config(sched, Config),
                              []
-                             ++ case os:getenv("SEED_TERM") of
-                                    false -> [];
-                                    Term -> [{seed, string_to_term(Term)}]
-                                end
+                             ++ try_getenv("SEED_TERM", fun (S) -> [{seed, string_to_term(S)}] end, [])
+                             ++ try_getenv("LOW_WATERMARK", fun (S) -> [{low_watermark, list_to_float(S)}] end, [])
+                             ++ try_getenv("VARIANT", fun (S) -> [{variant, list_to_atom(S)}] end, [])
                             }
                           }
                         ]}
