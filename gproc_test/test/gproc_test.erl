@@ -63,7 +63,7 @@ test_entry() ->
                           , {?config(sched, Config),
                              []
                              ++ try_getenv("SEED_TERM", fun (S) -> [{seed, string_to_term(S)}] end, [])
-                             ++ try_getenv("LOW_WATERMARK", fun (S) -> [{low_watermark, list_to_float(S)}] end, [])
+                             ++ try_getenv("RESET_WATERMARK", fun (S) -> [{reset_watermark, list_to_float(S)}] end, [])
                              ++ try_getenv("VARIANT", fun (S) -> [{variant, list_to_atom(S)}] end, [])
                             }
                           }
