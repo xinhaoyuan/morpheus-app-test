@@ -4,10 +4,15 @@
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("morpheus/include/morpheus.hrl").
+
+?MORPHEUS_CB_IS_SCOPED(true, gen_leader) ->
+    true;
+?MORPHEUS_CB_IS_SCOPED(_, _) ->
+    false.
 
 all_test_() ->
     {timeout, 3600, ?_test( test_entry() )}.
-
 
 string_to_term(String) ->
     {ok, Tokens, _EndLine} = erl_scan:string(String),
@@ -70,6 +75,13 @@ test_entry() ->
                         ]}
                     , stop_on_deadlock
                     , {node, master@localhost}
+                    , {aux_module, ?MODULE}
+                    , {aux_data,
+                       case os:getenv("SCOPED") of
+                           false -> false;
+                           "" -> false;
+                           _ -> true
+                       end}
                     , {clock_limit, 10000 + ?config(repeat, Config) * 10000}
                     %% , trace_receive, trace_send
                     %% , verbose_handle
@@ -85,6 +97,11 @@ test_entry() ->
                            false -> [];
                            "" -> [];
                            _ -> [{tracer_opts, [{acc_filename, "acc.dat"}, {acc_fork_period, 100}, {state_coverage, true}]}]
+                       end
+                    ++ case os:getenv("SCOPED") of
+                           false -> [];
+                           "" -> [];
+                           _ -> [{scoped_weight, 2}]
                        end
                    ),
     success = receive {'DOWN', MRef, _, _, Reason} -> Reason end,

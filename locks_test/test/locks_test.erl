@@ -6,14 +6,14 @@
 -include_lib("morpheus/include/morpheus.hrl").
 
 %% Override gen_server loop entry to extract states
-?MORPHEUS_CB_TO_OVERRIDE(gen_server, loop, 7) ->
+?MORPHEUS_CB_TO_OVERRIDE(_, gen_server, loop, 7) ->
     {true, callback};
-?MORPHEUS_CB_TO_OVERRIDE(locks_agent, loop, 1) ->
+?MORPHEUS_CB_TO_OVERRIDE(_, locks_agent, loop, 1) ->
     {true, callback};
-?MORPHEUS_CB_TO_OVERRIDE(_, _, _) ->
+?MORPHEUS_CB_TO_OVERRIDE(_, _, _, _) ->
     false.
 
-?MORPHEUS_CB_HANDLE_OVERRIDE(gen_server, NewModule, loop, OrigLoop, Args, _Ann) ->
+?MORPHEUS_CB_HANDLE_OVERRIDE(_, gen_server, NewModule, loop, NewEntry, Args, _Ann) ->
     %% This is a bit of hacky to extract info from the arguments
     %% The reporting interface in callback is not stable yet ...
     [_, Name, State, Mod | _] = Args,
@@ -31,8 +31,8 @@
         _ -> ok
     end,
     %% forward to the original code
-    apply(NewModule, OrigLoop, Args);
-?MORPHEUS_CB_HANDLE_OVERRIDE(locks_agent, NewModule, loop, OrigLoop, Args, _Ann) ->
+    apply(NewModule, NewEntry, Args);
+?MORPHEUS_CB_HANDLE_OVERRIDE(_, locks_agent, NewModule, loop, NewEntry, Args, _Ann) ->
     [State] = Args,
     ets:delete(test_state, self()),
     ets:insert(test_state, {self(), State}),

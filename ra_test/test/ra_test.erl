@@ -6,14 +6,14 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("morpheus/include/morpheus.hrl").
 
-?MORPHEUS_CB_TO_OVERRIDE(gen_statem, enter, 7) ->
+?MORPHEUS_CB_TO_OVERRIDE(_, gen_statem, enter, 7) ->
     {true, callback};
-?MORPHEUS_CB_TO_OVERRIDE(gen_statem, loop_event, 6) ->
+?MORPHEUS_CB_TO_OVERRIDE(_, gen_statem, loop_event, 6) ->
     {true, callback};
-?MORPHEUS_CB_TO_OVERRIDE(_, _, _) ->
+?MORPHEUS_CB_TO_OVERRIDE(_, _, _, _) ->
     false.
 
-?MORPHEUS_CB_HANDLE_OVERRIDE(gen_statem, NewModule, enter, NewEntry, Args, _Ann) ->
+?MORPHEUS_CB_HANDLE_OVERRIDE(_, gen_statem, NewModule, enter, NewEntry, Args, _Ann) ->
     %% This is a bit of hacky to extract info from the arguments
     %% The reporting interface in callback is not stable yet ...
     [Mod, Opts, StateName, State, Server | _] = Args,
@@ -33,7 +33,7 @@
     end,
     %% forward to the original code
     apply(NewModule, NewEntry, Args);
-?MORPHEUS_CB_HANDLE_OVERRIDE(gen_statem, NewModule, loop_event, NewEntry, Args, _Ann) ->
+?MORPHEUS_CB_HANDLE_OVERRIDE(_, gen_statem, NewModule, loop_event, NewEntry, Args, _Ann) ->
     %% This is a bit of hacky to extract info from the arguments
     %% The reporting interface in callback is not stable yet ...
     [_, _, GSMState | _] = Args,
