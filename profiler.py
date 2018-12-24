@@ -24,6 +24,7 @@ parser.add_argument("--refine-by", nargs = "+", action = "store", type = str, de
                     "command args prefix for refining the result. "
                     "When specified, the prefix appended with the return code will be executed, "
                     "where STDIN will be fed with STDOUT of the original command")
+parser.add_argument("--timeout", type = int, dest = "timeout")
 parser.add_argument("--split-output", action = "store_true", dest = "split_output",
                     help = "to split stdout and stderr")
 parser.add_argument("command_args", nargs = argparse.REMAINDER)
@@ -47,11 +48,16 @@ for i in range(0, args.repeat):
         else:
             p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
 
-        stdout, stderr = p.communicate()
+        stdout, stderr = p.communicate(timeout = args.timeout)
 
         result = p.returncode
     except subprocess.CalledProcessError as x:
-        sys.stdout.write("Got exception {}\n".format(x))
+        sys.stdout.write("Got exception: {}\n".format(x))
+        stdout = stderr = b""
+        result = 2
+    except subprocess.TimeoutExpired as x:
+        sys.stdout.write("Got timeout: {}\n".format(x))
+        stdout = stderr = b""
         result = 2
 
     if args.refine_by is not None:
