@@ -42,6 +42,7 @@ failed_counter = 0
 
 for i in range(0, args.repeat):
     result = None
+    may_refine = args.refine_by is not None
     try:
         if args.split_output:
             p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
@@ -59,8 +60,9 @@ for i in range(0, args.repeat):
         sys.stdout.write("Got timeout: {}\n".format(x))
         stdout = stderr = b""
         result = 2
+        may_refine = False
 
-    if args.refine_by is not None:
+    if may_refine:
         refine_cmd = args.refine_by.copy()
         for i in range(0, len(refine_cmd)):
             if refine_cmd[i] == "%":
