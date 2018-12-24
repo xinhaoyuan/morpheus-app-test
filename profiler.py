@@ -51,11 +51,15 @@ for i in range(0, args.repeat):
 
         stdout, stderr = p.communicate(timeout = args.timeout)
 
-        result = p.returncode
+        if may_refine:
+            result = p.returncode
+        else:
+            result = 0 if p.returncode == 0 else 1
     except subprocess.CalledProcessError as x:
         sys.stdout.write("Got exception: {}\n".format(x))
         stdout = stderr = b""
         result = 2
+        may_refine = False
     except subprocess.TimeoutExpired as x:
         sys.stdout.write("Got timeout: {}\n".format(x))
         stdout = stderr = b""
