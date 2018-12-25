@@ -4,6 +4,16 @@ import os, sys
 import argparse
 import subprocess
 import tempfile
+import psutil
+
+def kill(proc_pid):
+        process = psutil.Process(proc_pid)
+        for proc in process.children(recursive=True):
+            try:
+                proc.kill()
+            except Exception as x:
+                pass
+        process.kill()
 
 parser = argparse.ArgumentParser(
     description =
@@ -45,9 +55,9 @@ for i in range(0, args.repeat):
     may_refine = args.refine_by is not None
     try:
         if args.split_output:
-            p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+            p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, preexec_fn = os.setsid)
         else:
-            p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+            p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, preexec_fn = os.setsid)
 
         stdout, stderr = p.communicate(timeout = args.timeout)
 
@@ -60,11 +70,17 @@ for i in range(0, args.repeat):
         stdout = stderr = b""
         result = 2
         may_refine = False
+        kill(p.pid)
+        p.wait()
     except subprocess.TimeoutExpired as x:
         sys.stdout.write("Got timeout: {}\n".format(x))
         stdout = stderr = b""
         result = 2
         may_refine = False
+        kill(p.pid)
+        p.wait()
+
+    assert(p.poll() is not None)
 
     if may_refine:
         refine_cmd = args.refine_by.copy()
