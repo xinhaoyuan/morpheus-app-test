@@ -43,6 +43,11 @@
     %% forward to the original code
     apply(NewModule, OrigLoop, Args).
 
+?MORPHEUS_CB_IS_SCOPED(true, locks_agent) ->
+    true;
+?MORPHEUS_CB_IS_SCOPED(_, _) ->
+    false.
+
 all_test_() ->
     {timeout, 120, ?_test( test_entry() )}.
 
@@ -81,6 +86,11 @@ test_entry() ->
                false -> [];
                "" -> [];
                _ -> [{tracer_opts, [{acc_filename, "acc.dat"}, {acc_fork_period, 100}, {state_coverage, true}]}]
+           end
+        ++ case os:getenv("SCOPED") of
+               false -> [];
+               "" -> [];
+               _ -> [{scoped_weight, 2}]
            end
         ,
     test_state = ets:new(test_state, [public, named_table]),

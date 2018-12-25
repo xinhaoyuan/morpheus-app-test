@@ -3,6 +3,12 @@
 -compile(export_all).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("morpheus/include/morpheus.hrl").
+
+?MORPHEUS_CB_IS_SCOPED(true, locks_watcher) ->
+    true;
+?MORPHEUS_CB_IS_SCOPED(_, _) ->
+    false.
 
 all_test_() ->
     {timeout, 120, ?_test( test_entry() )}.
@@ -30,6 +36,7 @@ test_entry() ->
         , {node, node1@localhost}
         , {clock_limit, 600000}
         , {clock_offset, 1539105131938}
+        , {aux_module, ?MODULE}
         , stop_on_deadlock
           %% , trace_send, trace_receive
           %% , verbose_handle, verbose_ctl
@@ -39,7 +46,13 @@ test_entry() ->
                false -> [];
                "" -> [];
                _ -> [{only_schedule_send, true}]
-           end,
+           end
+        ++ case os:getenv("SCOPED") of
+               false -> [];
+               "" -> [];
+               _ -> [{scoped_weight, 2}]
+           end
+        ,
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [Config],
                     MConfig),
