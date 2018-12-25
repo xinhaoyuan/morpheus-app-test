@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 import psutil
 
+# Sometimes p.kill() cannot clean up all processes.
+# Need this routine to workaround.
 def kill(proc_pid):
         process = psutil.Process(proc_pid)
         for proc in process.children(recursive=True):
