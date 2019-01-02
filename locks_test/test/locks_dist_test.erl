@@ -5,7 +5,7 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("morpheus/include/morpheus.hrl").
 
-?MORPHEUS_CB_IS_SCOPED(true, locks_watcher) ->
+?MORPHEUS_CB_IS_SCOPED(true, erl_eval) ->
     true;
 ?MORPHEUS_CB_IS_SCOPED(_, _) ->
     false.
@@ -37,6 +37,11 @@ test_entry() ->
         , {clock_limit, 600000}
         , {clock_offset, 1539105131938}
         , {aux_module, ?MODULE}
+        , {aux_data, case os:getenv("SCOPED") of
+                         false -> false;
+                         [] -> false;
+                         _ -> true
+                     end}
         , stop_on_deadlock
           %% , trace_send, trace_receive
           %% , verbose_handle, verbose_ctl

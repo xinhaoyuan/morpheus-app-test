@@ -75,6 +75,11 @@ test_entry() ->
         , {clock_limit, 5000 + 5000 * ?config(repeat, Config)}
         , {clock_offset, 1539105131938}
         , {aux_module, ?MODULE}
+        , {aux_data, case os:getenv("SCOPED") of
+                         false -> false;
+                         [] -> false;
+                         _ -> true
+                     end}
         , stop_on_deadlock
         ]
         ++ case os:getenv("ONLY_SEND") of
