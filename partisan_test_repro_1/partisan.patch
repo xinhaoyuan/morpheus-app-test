@@ -1,0 +1,35 @@
+diff --git a/rebar.config b/rebar.config
+index 469f80b..3759f26 100644
+--- a/rebar.config
++++ b/rebar.config
+@@ -1,7 +1,7 @@
+ {min_otp_version, "19.0"}.
+ 
+ {deps, [
+-        {uuid, {pkg, uuid_erl}},
++        uuid,
+         time_compat,
+         rand_compat,
+         {acceptor_pool, "1.0.0-rc.0"},
+diff --git a/src/partisan_default_peer_service_manager.erl b/src/partisan_default_peer_service_manager.erl
+index 8f11b1e..6ac9c91 100644
+--- a/src/partisan_default_peer_service_manager.erl
++++ b/src/partisan_default_peer_service_manager.erl
+@@ -980,6 +980,10 @@ do_gossip(Recipients, Membership, Connections) ->
+                     lager:debug("Sending state with updated membership: ~p", [Members]),
+ 
+                     lists:foreach(fun(Peer) ->
++                                case node() =:= node1@localhost andalso Peer =:= node2@localhost of
++                                    true -> io:format(user, "!!! delay gossip from ~w to ~w of ~p~n", [node(), Peer, Members]), timer:sleep(2000);
++                                    false -> io:format(user, "!!! gossip from ~w to ~w of ~p~n", [node(), Peer, Members])
++                                end,
+                                 do_send_message(Peer,
+                                                 ?DEFAULT_CHANNEL,
+                                                 ?DEFAULT_PARTITION_KEY,
+@@ -1170,4 +1174,4 @@ avoid_rush() ->
+             timer:sleep(rand:uniform(ConnectionJitter));
+         false ->
+             timer:sleep(ConnectionJitter)
+-    end.
+\ No newline at end of file
++    end.
