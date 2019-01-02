@@ -34,10 +34,8 @@ test_entry() ->
                       ok = partisan_peer_service:join(Node1),
                       receive setoff -> ok end,
                       timer:sleep(1000),
-                      %% For some reason, removing the print will hide the bug. Strange
                       io:format(user, "!!! ~w is leaving the cluster~n", [node()]),
                       ok = partisan_peer_service:leave(node()),
-                      %% This print won't show up as the connection of the node is broken during the leave call
                       io:format(user, "!!! ~w left the cluster~n", [node()]),
                       ok
               end),
