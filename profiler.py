@@ -68,14 +68,14 @@ for i in range(0, args.repeat):
         else:
             result = 0 if p.returncode == 0 else 1
     except subprocess.CalledProcessError as x:
-        sys.stdout.write("Got exception: {}\n".format(x))
+        sys.stdout.write("Got exception: {}\n".format(x)); sys.stdout.flush()
         stdout = stderr = b""
         result = 2
         may_refine = False
         kill(p.pid)
         p.wait()
     except subprocess.TimeoutExpired as x:
-        sys.stdout.write("Got timeout: {}\n".format(x))
+        sys.stdout.write("Got timeout: {}\n".format(x)); sys.stdout.flush()
         stdout = stderr = b""
         result = 2
         may_refine = False
@@ -99,7 +99,7 @@ for i in range(0, args.repeat):
                 refiner.wait()
                 result = refiner.returncode
         except subprocess.CalledProcessError as x:
-            sys.stdout.write("Got exception in refiner: {}\n".format(x))
+            sys.stdout.write("Got exception in refiner: {}\n".format(x)); sys.stdout.flush()
             result = 2
 
     if result == 0:
@@ -111,15 +111,16 @@ for i in range(0, args.repeat):
         if (result == 0 and not args.hide_true) \
            or (result == 1 and not args.hide_false) \
            or (not args.hide_unknown):
-            sys.stdout.write("==== OUTPUT ====\n")
+            sys.stdout.write("==== OUTPUT ====\n"); sys.stdout.flush()
             sys.stdout.buffer.write(stdout)
             if args.split_output:
-                sys.stdout.write("\n==== STDERR ====\n")
+                sys.stdout.write("\n==== STDERR ====\n"); sys.stdout.flush()
                 sys.stdout.buffer.write(stderr)
             sys.stdout.write("\n")
     sys.stdout.write("Run {}: {} ({}/{})\n".format(
         i + 1,
         "success" if result == 0 else "failed" if result == 1 else "unknown",
         succ_counter, failed_counter))
+    sys.stdout.flush()
 
 print(args)
