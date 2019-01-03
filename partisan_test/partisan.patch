@@ -1,0 +1,77 @@
+diff --git a/rebar.config b/rebar.config
+index 469f80b..3759f26 100644
+--- a/rebar.config
++++ b/rebar.config
+@@ -1,7 +1,7 @@
+ {min_otp_version, "19.0"}.
+ 
+ {deps, [
+-        {uuid, {pkg, uuid_erl}},
++        uuid,
+         time_compat,
+         rand_compat,
+         {acceptor_pool, "1.0.0-rc.0"},
+diff --git a/src/partisan_default_peer_service_manager.erl b/src/partisan_default_peer_service_manager.erl
+index 8f11b1e..d5d589e 100644
+--- a/src/partisan_default_peer_service_manager.erl
++++ b/src/partisan_default_peer_service_manager.erl
+@@ -646,6 +646,14 @@ handle_info({connected, Node, _Tag, RemoteState},
+                       sync_joins=SyncJoins0,
+                       connections=Connections}=State0) ->
+     lager:debug("Node ~p connected!", [Node]),
++    io:format(user,
++              "!!! connected @ ~w~n"
++              "  node: ~w~n"
++              "  remote membership ~p~n"
++              "  local pending: ~w~n"
++              "  local membership ~p~n"
++              "  local sync join: ~p~n",
++              [self(), Node, RemoteState, Pending0, Membership0, SyncJoins0]),
+ 
+     State = case lists:member(Node, Pending0) of
+         true ->
+@@ -978,6 +986,10 @@ do_gossip(Recipients, Membership, Connections) ->
+                     Members = [N || #{name := N} <- members(Membership)],
+ 
+                     lager:debug("Sending state with updated membership: ~p", [Members]),
++                    io:format(user,
++                              "!!! ~w sending state with updated membership: ~p~n"
++                              "    data ~p~n",
++                              [self(), Members, Membership]),
+ 
+                     lists:foreach(fun(Peer) ->
+                                 do_send_message(Peer,
+@@ -1063,6 +1075,13 @@ internal_leave(Node, #state{actor=Actor,
+                                 M0
+                         end
+                 end, Membership0, members(Membership0)),
++    io:format(user,
++              "!!! internal_leave ~w~n"
++              "    before ~p~n"
++              "    data ~p~n"
++              "    after ~p~n"
++              "    data ~p~n",
++              [Node, sets:to_list(?SET:query(Membership0)), Membership0, sets:to_list(?SET:query(Membership)), Membership]),
+ 
+     %% Gossip new membership to existing members, so they remove themselves.
+     do_gossip(Membership0, Membership, Connections),
+@@ -1170,4 +1189,4 @@ avoid_rush() ->
+             timer:sleep(rand:uniform(ConnectionJitter));
+         false ->
+             timer:sleep(ConnectionJitter)
+-    end.
+\ No newline at end of file
++    end.
+diff --git a/src/partisan_peer_service_client.erl b/src/partisan_peer_service_client.erl
+index 1a20f03..4904fcd 100644
+--- a/src/partisan_peer_service_client.erl
++++ b/src/partisan_peer_service_client.erl
+@@ -38,7 +38,7 @@
+ -type state_t() :: #state{}.
+ 
+ %% Macros.
+--define(TIMEOUT, 1000).
++-define(TIMEOUT, 100000).
+ 
+ -include("partisan.hrl").
+ -include("partisan_peer_connection.hrl").
