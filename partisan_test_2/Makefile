@@ -15,5 +15,10 @@ dep_partisan = cp patched/partisan
 
 default: all
 
+deps :: patched/partisan
+
+patched/partisan:
+	./get_patched_partisan.sh
+
 include ../dep_morpheus.mk
 include ../erlang.mk
