@@ -51,7 +51,6 @@ test_entry() ->
         ]
         ++ [{tracer_opts,
              [ {acc_filename, ?config(acc_filename, Config)}
-             , {po_coverage, true}
              , {find_races, true}
              , {extra_opts,
                 maps:from_list(
