@@ -26,6 +26,7 @@ test_entry() ->
     Config =
         [ {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
+        , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         ],
     MConfig =
         [ monitor
@@ -47,10 +48,46 @@ test_entry() ->
           %% , verbose_handle, verbose_ctl
           %% , {trace_from_start, true}
         ]
+        ++ [{tracer_opts,
+             [ {acc_filename, "acc.dat"}
+             , {po_coverage, true}
+             , {find_races, true}
+             , {extra_opts,
+                maps:from_list(
+                  [ {verbose_race_info, true}
+                  , {verbose_racing_prediction_stat, true}
+                  ]
+                  ++ case os:getenv("LABELED_TRACE") of
+                         false -> [];
+                         "" -> [];
+                         Pred -> [{unify, true}]
+                     end
+                 )}
+             ]
+             ++ case os:getenv("PRED") of
+                    false -> [];
+                    "" -> [];
+                    Pred -> [ {path_coverage, true}
+                            , {line_coverage, true}
+                            , {to_predict, true}
+                            , {predict_by, list_to_atom(Pred)}
+                            ]
+                end
+             ++ case os:getenv("LABELED_TRACE") of
+                    false -> [];
+                    "" -> [];
+                    Pred -> [{dump_traces, true}]
+                end
+            }]
         ++ case os:getenv("ONLY_SEND") of
                false -> [];
                "" -> [];
                _ -> [{only_schedule_send, true}]
+           end
+        ++ case os:getenv("PRED") of
+               false -> [];
+               "" -> [];
+               _ -> [{use_prediction, true}]
            end
         ++ case os:getenv("SCOPED") of
                false -> [];

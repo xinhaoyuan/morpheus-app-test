@@ -93,17 +93,34 @@ test_entry() ->
                            "" -> [];
                            _ -> [{only_schedule_send, true}]
                        end
-                    ++ [ {tracer_opts, [ {acc_filename, "acc.dat"}
-                                       , {find_races, true}
-                                       , {path_coverage, true}
-                                       , {line_coverage, true}
-                                       , {to_predict, true}
-                                       , {extra_opts, #{verbose_race_info => true, verbose_racing_prediction_stat => true}}
-                                       ]
+                    ++ [ {tracer_opts,
+                          [ {acc_filename, "acc.dat"}
+                          , {find_races, true}
+                          , {extra_opts,
+                             maps:from_list(
+                               [ {verbose_race_info, true}
+                               , {verbose_racing_prediction_stat, true}
+                               ]
+                               ++ case os:getenv("LABELED_TRACE") of
+                                      false -> [];
+                                      "" -> [];
+                                      Pred -> [{unify, true}]
+                                  end
+                              )}
+                          ]
                           ++ case os:getenv("PRED") of
                                  false -> [];
                                  "" -> [];
-                                 Pred -> [{predict_by, list_to_atom(Pred)}]
+                                 Pred -> [ {path_coverage, true}
+                                         , {line_coverage, true}
+                                         , {to_predict, true}
+                                         , {predict_by, list_to_atom(Pred)}
+                                         ]
+                             end
+                          ++ case os:getenv("LABELED_TRACE") of
+                                 false -> [];
+                                 "" -> [];
+                                 Pred -> [{dump_traces, true}]
                              end
                          }
                        ]

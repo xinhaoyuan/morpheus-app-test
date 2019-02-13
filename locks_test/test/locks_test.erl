@@ -87,11 +87,14 @@ test_entry() ->
                "" -> [];
                _ -> [{only_schedule_send, true}]
            end
-        ++ case os:getenv("STATE_COVERAGE") of
-               false -> [];
-               "" -> [];
-               _ -> [{tracer_opts, [{acc_filename, "acc.dat"}, {acc_fork_period, 100}, {state_coverage, true}]}]
-           end
+        ++ [{tracer_opts, [ {acc_filename, "acc.dat"}
+                          , {po_coverage, true}
+                          , {find_races, true}
+                          , {path_coverage, true}
+                          , {line_coverage, true}
+                          , {to_predict, true}
+                          , {extra_opts, #{verbose_race_info => true, verbose_racing_prediction_stat => true}}
+                          ]}]
         ++ case os:getenv("SCOPED") of
                false -> [];
                "" -> [];
