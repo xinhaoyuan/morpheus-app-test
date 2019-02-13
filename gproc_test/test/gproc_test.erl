@@ -35,6 +35,7 @@ test_entry() ->
         , {testcase, try_getenv("TESTCASE", fun list_to_atom/1, t_simple_ensure_other)}
         , {nodes, [node1@localhost, node2@localhost, node3@localhost]}
         , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
+        , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
         ],
     Config =
         Config0
@@ -94,7 +95,7 @@ test_entry() ->
                            _ -> [{only_schedule_send, true}]
                        end
                     ++ [ {tracer_opts,
-                          [ {acc_filename, "acc.dat"}
+                          [ {acc_filename, ?config(acc_filename, Config)}
                           , {find_races, true}
                           , {extra_opts,
                              maps:from_list(

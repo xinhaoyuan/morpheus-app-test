@@ -27,6 +27,7 @@ test_entry() ->
         [ {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
         , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
+        , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
         ],
     MConfig =
         [ monitor
@@ -49,7 +50,7 @@ test_entry() ->
           %% , {trace_from_start, true}
         ]
         ++ [{tracer_opts,
-             [ {acc_filename, "acc.dat"}
+             [ {acc_filename, ?config(acc_filename, Config)}
              , {po_coverage, true}
              , {find_races, true}
              , {extra_opts,
