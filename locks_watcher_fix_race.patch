@@ -1,0 +1,45 @@
+diff --git a/src/locks_watcher.erl b/src/locks_watcher.erl
+index 7e6729b..0f2791f 100644
+--- a/src/locks_watcher.erl
++++ b/src/locks_watcher.erl
+@@ -20,23 +20,23 @@ parse_transform(Forms, _) ->
+ %% Variable names are fetched from the function head, so no pattern-matching
+ %% in the head.
+ locks_watcher(Agent) ->
+-    case whereis(locks_server) of
+-	undefined ->
+-	    A = fun(A1) ->
+-			try register(locks_watcher, self()),
+-			     B = fun(B1,Ws) ->
+-					 watcher(B1,Ws,Agent)
+-				 end,
+-			     B(B, [Agent])
+-			catch
+-			    error:_ ->
+-				another_watcher(A1, Agent)
+-			end
+-		end,
+-	    A(A);
+-	_Server ->
+-	    Agent ! {locks_running, node()}
+-    end.
++    A = fun(A1) ->
++                case whereis(locks_server) of
++                    undefined ->
++                        try register(locks_watcher, self()),
++                             B = fun(B1,Ws) ->
++                                         watcher(B1,Ws,Agent)
++                                 end,
++                             B(B, [Agent])
++                        catch
++                            error:_ ->
++                                another_watcher(A1, Agent)
++                        end;
++                    _Server ->
++                        Agent ! {locks_running, node()}
++                end
++        end,
++    A(A).
+ 
+ watcher(Cont,Ws,Agent) ->
+     receive

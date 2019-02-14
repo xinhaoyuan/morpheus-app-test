@@ -1,0 +1,40 @@
+diff --git a/src/locks_watcher.erl b/src/locks_watcher.erl
+index 7e6729b..11884db 100644
+--- a/src/locks_watcher.erl
++++ b/src/locks_watcher.erl
+@@ -39,8 +39,10 @@ locks_watcher(Agent) ->
+     end.
+ 
+ watcher(Cont,Ws,Agent) ->
++    io:format(user, "~w watcher(_,~w,~w)~n", [self(), Ws, Agent]),
+     receive
+ 	{From, watch_for_me, P} ->
++            io:format(user, "~w <- {~w,watch_for_me,~w}~n", [self(), From, P]),
+ 	    From ! {locks_watcher,ok},
+ 	    if node(P) == node(Agent) ->
+ 		    Cont(Cont,Ws);
+@@ -48,19 +50,24 @@ watcher(Cont,Ws,Agent) ->
+ 		    Cont(Cont, [P|Ws])
+ 	    end;
+ 	locks_running ->
++            io:format(user, "~w <- locks_running~n", [self()]),
+ 	    [P ! {locks_running,node()} || P <- Ws]
+     end.
+ 
+ another_watcher(Cont, Agent) ->
++    io:format(user, "~w another_watcher(_,~w)~n", [self(), Agent]),
+     try locks_watcher ! {self(),watch_for_me,Agent},
+ 	 receive
+ 	     {locks_watcher,ok} ->
++                 io:format(user, "~w <- {locks_watcher,ok}~n", [self()]),
+ 		 ok
+ 	 after 500 ->
++                 io:format(user, "~w <- after 500 ~n", [self()]),
+ 		 Cont(Cont)
+ 	 end
+     catch
+ 	error:_ ->
++            io:format(user, "~w send error~n", [self()]),
+ 	    Cont(Cont)
+     end.
+ 
