@@ -29,6 +29,41 @@ test_entry() ->
         , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
         ],
+    TConfig =
+        [ {acc_filename, ?config(acc_filename, Config)}
+        , {find_races, true}
+        , {extra_opts,
+           maps:from_list(
+             [ {verbose_race_info, true}
+             , {verbose_racing_prediction_stat, true}
+             ]
+             ++ case os:getenv("LABELED_TRACE") of
+                    false -> [];
+                    "" -> [];
+                    Pred -> [{unify, true}]
+                end
+            )}
+        ]
+        ++ case os:getenv("PRED") of
+               false -> [];
+               "" -> [];
+               "path" ->
+                   [ {path_coverage, true}
+                   , {to_predict, true}
+                   , {predict_by, path}
+                   ];
+               "ploc" ->
+                   [ {line_coverage, true}
+                   , {to_predict, true}
+                   , {predict_by, ploc}
+                   ]
+           end
+        ++ case os:getenv("LABELED_TRACE") of
+               false -> [];
+               "" -> [];
+               Pred -> [{dump_traces, true}]
+           end,
+    {ok, Tracer} = morpheus_tracer:start_link(TConfig),
     MConfig =
         [ monitor
         , { fd_opts
@@ -48,37 +83,8 @@ test_entry() ->
           %% , trace_send, trace_receive
           %% , verbose_handle, verbose_ctl
           %% , {trace_from_start, true}
+        , {tracer_pid, Tracer}
         ]
-        ++ [{tracer_opts,
-             [ {acc_filename, ?config(acc_filename, Config)}
-             , {find_races, true}
-             , {extra_opts,
-                maps:from_list(
-                  [ {verbose_race_info, true}
-                  , {verbose_racing_prediction_stat, true}
-                  ]
-                  ++ case os:getenv("LABELED_TRACE") of
-                         false -> [];
-                         "" -> [];
-                         Pred -> [{unify, true}]
-                     end
-                 )}
-             ]
-             ++ case os:getenv("PRED") of
-                    false -> [];
-                    "" -> [];
-                    Pred -> [ {path_coverage, true}
-                            , {line_coverage, true}
-                            , {to_predict, true}
-                            , {predict_by, list_to_atom(Pred)}
-                            ]
-                end
-             ++ case os:getenv("LABELED_TRACE") of
-                    false -> [];
-                    "" -> [];
-                    Pred -> [{dump_traces, true}]
-                end
-            }]
         ++ case os:getenv("ONLY_SEND") of
                false -> [];
                "" -> [];
@@ -98,65 +104,98 @@ test_entry() ->
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [Config],
                     MConfig),
-    success = receive {'DOWN', MRef, _, _, Reason} -> Reason end,
+    receive {'DOWN', MRef, _, _, Reason} ->
+            morpheus_tracer:dump_trace(Tracer),
+            morpheus_tracer:stop(Tracer),
+            success = Reason
+    end,
     ok.
 
 -define(G, morpheus_guest).
 -define(GH, morpheus_guest_helper).
 
+%% t_sandbox_entry(Config) ->
+%%     Nodes = [Node1, Node2, Node3] =
+%%         [node1@localhost, node2@localhost, node3@localhost],
+%%     lists:foreach(fun (Node) ->
+%%                           ?GH:bootstrap_remote(Node)
+%%                   end, Nodes -- [Node1]),
+%%     ?GH:bootstrap(Node1),
+%%     ?G:set_flags([{tracing, true}]),
+
+%%     {[ok, ok, ok], []} = rpc:multicall(Nodes, application, start, [locks]),
+
+%%     tab = ets:new(tab, [named_table, public]),
+%%     ets:insert(tab, {test_counter, 0}),
+
+%%     {ok, ECBegin} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
+%%     ?GH:sync_task(
+%%        [ repeat, ?config(repeat, Config)
+%%        , fun () ->
+%%                  Cnt = ets:update_counter(tab, test_counter, 1),
+%%                  io:format(user, "Test ~w~n", [Cnt]),
+%%                  Workers =
+%%                      lists:foldr(
+%%                        fun (Id, Acc) ->
+%%                                {Pid, MRef} =
+%%                                    erlang:spawn_monitor(
+%%                                      lists:nth(Id, Nodes),
+%%                                      fun () ->
+%%                                              {ok, Agt} = locks_agent:start(),
+%%                                              locks:change_flag(Agt, abort_on_deadlock, true),
+%%                                              locks:change_flag(Agt, await_nodes, true),
+%%                                              LockOrder =
+%%                                                  case Id of
+%%                                                      1 -> [[2], [1]];
+%%                                                      2 -> [[1], [2]]
+%%                                                  end,
+%%                                              lists:foreach(
+%%                                                fun (Lock) ->
+%%                                                        io:format("~p(~p) ~p lock ~p call ~p~n", [self(), Agt, Id, Lock, locks:lock(Agt, Lock, write, Nodes, all)])
+%%                                                end, LockOrder)
+%%                                      end),
+%%                                [{Pid, MRef} | Acc]
+%%                        end, [], lists:seq(1, 2)),
+
+%%                  ok = rpc:call(Node3, application, stop, [locks]),
+%%                  ok = rpc:call(Node3, application, start, [locks]),
+
+%%                  lists:foreach(
+%%                    fun ({_, MRef}) ->
+%%                            receive {'DOWN', MRef, _, _, _} -> ok end
+%%                    end, Workers),
+%%                  ok
+%%          end
+%%        ]),
+%%     {ok, ECEnd} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
+%%     io:format(user, "Event counter = ~p~n", [ECEnd - ECBegin]),
+
+%%     ?G:exit_with(success).
+
 t_sandbox_entry(Config) ->
-    Nodes = [Node1, Node2, Node3] =
-        [node1@localhost, node2@localhost, node3@localhost],
+    Nodes = [Node1, Node2] =
+        [node1@localhost, node2@localhost],
     lists:foreach(fun (Node) ->
                           ?GH:bootstrap_remote(Node)
                   end, Nodes -- [Node1]),
     ?GH:bootstrap(Node1),
     ?G:set_flags([{tracing, true}]),
 
-    {[ok, ok, ok], []} = rpc:multicall(Nodes, application, start, [locks]),
-
-    tab = ets:new(tab, [named_table, public]),
-    ets:insert(tab, {test_counter, 0}),
+    ok = application:start(locks),
 
     {ok, ECBegin} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
-    ?GH:sync_task(
-       [ repeat, ?config(repeat, Config)
-       , fun () ->
-                 Cnt = ets:update_counter(tab, test_counter, 1),
-                 io:format(user, "Test ~w~n", [Cnt]),
-                 Workers =
-                     lists:foldr(
-                       fun (Id, Acc) ->
-                               {Pid, MRef} =
-                                   erlang:spawn_monitor(
-                                     lists:nth(Id, Nodes),
-                                     fun () ->
-                                             {ok, Agt} = locks_agent:start(),
-                                             locks:change_flag(Agt, abort_on_deadlock, true),
-                                             locks:change_flag(Agt, await_nodes, true),
-                                             LockOrder =
-                                                 case Id of
-                                                     1 -> [[2], [1]];
-                                                     2 -> [[1], [2]]
-                                                 end,
-                                             lists:foreach(
-                                               fun (Lock) ->
-                                                       io:format("~p(~p) ~p lock ~p call ~p~n", [self(), Agt, Id, Lock, locks:lock(Agt, Lock, write, Nodes, all)])
-                                               end, LockOrder)
-                                     end),
-                               [{Pid, MRef} | Acc]
-                       end, [], lists:seq(1, 2)),
+    {Pid, MRef} =
+        spawn_monitor(
+          fun () ->
+                  {ok, Agt} = locks_agent:start(),
+                  locks:change_flag(Agt, abort_on_deadlock, true),
+                  locks:change_flag(Agt, await_nodes, true),
+                  locks:lock(Agt, [1], write, Nodes, all)
+          end),
+    
+    ok = rpc:call(Node2, application, start, [locks]),
+    receive {'DOWN', MRef, _, _, _} -> ok end,
 
-                 ok = rpc:call(Node3, application, stop, [locks]),
-                 ok = rpc:call(Node3, application, start, [locks]),
-
-                 lists:foreach(
-                   fun ({_, MRef}) ->
-                           receive {'DOWN', MRef, _, _, _} -> ok end
-                   end, Workers),
-                 ok
-         end
-       ]),
     {ok, ECEnd} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
     io:format(user, "Event counter = ~p~n", [ECEnd - ECBegin]),
 
