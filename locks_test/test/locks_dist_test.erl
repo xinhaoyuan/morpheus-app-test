@@ -28,6 +28,7 @@ test_entry() ->
         , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
         , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
+        , {dump, try_getenv("DUMP", fun (I) -> I =/= "" end, false)}
         ],
     TConfig =
         [ {acc_filename, ?config(acc_filename, Config)}
@@ -105,7 +106,10 @@ test_entry() ->
                     ?MODULE, t_sandbox_entry, [Config],
                     MConfig),
     receive {'DOWN', MRef, _, _, Reason} ->
-            morpheus_tracer:dump_trace(Tracer),
+            case ?config(dump, Config) of
+                true -> morpheus_tracer:dump_trace(Tracer);
+                false -> ok
+            end,
             morpheus_tracer:stop(Tracer),
             success = Reason
     end,
