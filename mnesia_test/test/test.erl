@@ -301,6 +301,48 @@ del_index_and_restart(Config) ->
     ok.
 
 %% bug found
+add_index_and_restart_2(Config) ->
+    ok = prepare_and_start(Config),
+
+    Self = self(),
+
+    {atomic, ok} =
+        mnesia:create_table(test_record,
+                            [{attributes, record_info(fields, test_record)},
+                             {disc_copies, [node1@localhost, node2@localhost]}]),
+
+    {atomic,ok} = mnesia:transaction(
+                    fun () ->
+                            mnesia:write(#test_record{ key = test_key, key2 = test_key2, value = test_value })
+                    end),
+
+    spawn(node2@localhost,
+          fun () ->
+                  (fun R() ->
+                           case mnesia:add_table_index(test_record, #test_record.key2) of
+                               {atomic, ok} -> ok;
+                               _R -> io:format(user, "Retry with ~p~n", [_R]), timer:sleep(100), R()
+                           end
+                   end)(),
+                  Self ! ok
+          end),
+    spawn(node3@localhost,
+          fun () ->
+                  application:stop(mnesia),
+                  ok = application:start(mnesia),
+                  Self ! ok
+          end),
+    receive ok -> ok end,
+    receive ok -> ok end,
+
+    case lists:sort(mnesia:table_info(test_record, index)) of
+        [#test_record.key2] -> ok;
+        _R -> io:format(user, "mismatched: ~p~n", [_R]), ?G:exit_with(mismatched)
+    end,
+
+    ok.
+
+%% bug found
 del_index_and_restart_2(Config) ->
     ok = prepare_and_start(Config),
 
@@ -342,6 +384,7 @@ del_index_and_restart_2(Config) ->
 
     ok.
 
+%% no bug found yet
 del_index_and_add_index(Config) ->
     ok = prepare_and_start(Config),
 
