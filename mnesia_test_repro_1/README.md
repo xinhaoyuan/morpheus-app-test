@@ -1,6 +1,6 @@
 # Description
 
-This reproduces a deadlock due to an atomic violation between `merge_schema` TXs when starting mnesia, and an `add_table_copy` TX.
+This reproduces a deadlock due to an atomicity violation between `merge_schema` TXs when starting mnesia, and an `add_table_copy` TX.
 
 For example, suppose there are two nodes A and B:
 
