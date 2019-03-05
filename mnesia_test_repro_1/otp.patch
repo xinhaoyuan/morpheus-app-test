@@ -1,0 +1,18 @@
+diff --git a/lib/mnesia/src/mnesia_controller.erl b/lib/mnesia/src/mnesia_controller.erl
+index 77013489b3..41064f3bd7 100644
+--- a/lib/mnesia/src/mnesia_controller.erl
++++ b/lib/mnesia/src/mnesia_controller.erl
+@@ -511,6 +511,13 @@ default_merge(F) ->
+     F([]).
+ 
+ try_merge_schema(Nodes, Told0, UserFun) ->
++    case node() of
++        node2@localhost ->
++            io:format(user, "try_merge_schema ~w, ~w, fun() delay begin~n", [Nodes, Told0]),
++            timer:sleep(500),
++            io:format(user, "try_merge_schema ~w, ~w, fun() delay end~n", [Nodes, Told0]);
++        _ -> ok
++    end,
+     case mnesia_schema:merge_schema(UserFun) of
+ 	{atomic, not_merged} ->
+ 	    %% No more nodes that we need to merge the schema with
