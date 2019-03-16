@@ -21,49 +21,38 @@ try_getenv(Name, Handler, Default) ->
         S -> Handler(S)
     end.
 
-%% is_racing(#fd_delay_req{to = global}, #fd_delay_req{}) ->
-%%     false;
-%% is_racing(#fd_delay_req{}, #fd_delay_req{to = global}) ->
-%%     false;
-%% is_racing(#fd_delay_req{to = To, data = #{req := R1}}, #fd_delay_req{to = To, data = #{req := R2}}) ->
-%%     case {R1, R2} of
-%%         %% {{process_send, _, _, {msg_commit, _, _, _}}, {process_send, _, _, {msg_commit, _, _, _}}} ->
-%%         %%     io:format(user, "!!! ~w ~w~n", [R1, R2]),
-%%         %%     true;
-%%         %% {{process_send, _, _, {msg_propose, _, _, _}}, {process_send, _, _, {msg_prepare, _, _}}} ->
-%%         %%     io:format(user, "!!! ~w ~w~n", [R1, R2]),
-%%         %%     true;
-%%         %% Only this one improve the probability
-%%         %% {{process_send, _, _, {msg_commit, _, _, _}}, {process_send, _, _, {msg_propose, _, _, _}}} ->
-%%         %%     io:format(user, "!!! ~w ~w~n", [R1, R2]),
-%%         %%     true;
-%%         %% {{process_send, _, _, {msg_propose, _, _, _}}, {process_send, _, _, {msg_commit, _, _, _}}} ->
-%%         %%     io:format(user, "!!! ~w ~w~n", [R1, R2]),
-%%         %%     true;
-%%         _ ->
-%%             false
-%%     end;
-%% is_racing(#fd_delay_req{}, #fd_delay_req{}) ->
-%%     false.
+is_racing(#fd_delay_req{to = global}, #fd_delay_req{}) ->
+    false;
+is_racing(#fd_delay_req{}, #fd_delay_req{to = global}) ->
+    false;
+is_racing(#fd_delay_req{to = To, data = #{req := R1}}, #fd_delay_req{to = To, data = #{req := R2}}) ->
+    case {R1, R2} of
+        {{process_send, _, _, {msg_propose, _, _, _}}, {process_send, _, _, {msg_prepare, _, _}}} ->
+            case pid_to_list(To) of
+                "<0.83.0>" ->
+                    io:format(user, "!!! ~w ~w~n", [R1, R2]),
+                    true;
+                _ ->
+                    false
+            end;
+        {{process_send, _, _, {msg_prepare, _, _}}, {process_send, _, _, {msg_commit, _, _, _}}} ->
+            case pid_to_list(To) of
+                "<0.83.0>" ->
+                    io:format(user, "!!! ~w ~w~n", [R1, R2]),
+                    true;
+                _ ->
+                    false
+            end;
+        _ ->
+            %% io:format(user, "!!! ??? ~w ~w~n", [R1, R2]),
+            false
+    end;
+is_racing(#fd_delay_req{}, #fd_delay_req{}) ->
+    false.
 
-%% ?MORPHEUS_CB_ANNOTATE_SCHED_DATA_FN(_, Data, From, Req) ->
-%%     D1 = Data#{req => Req}, 
-%%     case Req of
-%%         ?cci_send_msg(_, _, Msg) ->
-%%             case is_tuple(Msg) andalso size(Msg) >= 3 andalso element(3, Msg) of
-%%                 {Num, _} ->
-%%                     io:format(user, "!!! annotate ~w with ~w~n", [Req, Num]), 
-%%                     D1#{weight => Num + 1};
-%%                 _ ->
-%%                     io:format(user, "!!! ??? ~w~n", [Req]), 
-%%                     D1
-%%             end;
-%%         _ ->
-%%             D1
-%%     end.
-
-%% is_racing(_, _) ->
-%%     false.
+?MORPHEUS_CB_ANNOTATE_SCHED_DATA_FN(_, Data, From, Req) ->
+    D1 = Data#{req => Req},
+    D1.
 
 test_entry() ->
     Config =
@@ -116,7 +105,7 @@ test_entry() ->
               , {?config(sched, Config),
                  [
                   %% {seed, {exrop,[69234962250945757|600092897920190]}}
-                  %% {is_racing_fun, fun is_racing/2}
+                  {is_racing_fun, fun is_racing/2}
                  ]} }
             , verbose_final ] }
         , {node, node1@localhost}
@@ -201,7 +190,7 @@ proxy(Master, Ref) ->
         Other ->
             Master ! {Ref, Other},
             proxy(Master, Ref)
-    end.    
+    end.
 
 c6023(Config) ->
     Servers = lwt:start_v1_servers(3),
