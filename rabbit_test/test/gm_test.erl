@@ -23,7 +23,7 @@ test_entry() ->
              , {cluster_id, <<"cluster">>}
              , {uid, <<"node_uid">>}
              , {priv_dir, "/tmp/rabbit"}
-             , {repeat, 100}
+             , {repeat, 1}
              ],
 
     {Ctl, MRef} = morpheus_sandbox:start(
@@ -41,6 +41,7 @@ test_entry() ->
             , {heartbeat, once}
             , {clock_offset, 1543790191051}
             , {clock_limit, ?config(repeat, Config) * 10000 + 10000}
+            , {aux_module, ?MODULE}
             ]),
     ?assertEqual(success, receive {'DOWN', MRef, _, _, Reason} -> Reason end),
 

@@ -110,7 +110,7 @@ for i in range(0, args.repeat):
     if not args.hide:
         if (result == 0 and not args.hide_true) \
            or (result == 1 and not args.hide_false) \
-           or (not args.hide_unknown):
+           or (result != 0 and result != 1 and not args.hide_unknown):
             sys.stdout.write("==== OUTPUT ====\n"); sys.stdout.flush()
             sys.stdout.buffer.write(stdout)
             if args.split_output:

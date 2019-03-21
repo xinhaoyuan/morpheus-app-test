@@ -196,22 +196,6 @@ c6023(Config) ->
     Servers = lwt:start_v1_servers(3),
     Items = [x,y,z],
     Self = self(),
-    %% Clients =
-    %%     lists:foldl(
-    %%       fun (I, Acc) ->
-    %%               [{lwt:start_v1_client(Servers), I} | Acc]
-    %%       end, [], Items),
-    %% lists:foreach(
-    %%   fun ({C, I}) ->
-    %%           spawn(fun() ->
-    %%                         submit(C, I),
-    %%                         Self ! ok
-    %%                 end)
-    %%   end, Clients),
-    %% lists:foreach(
-    %%   fun (_) ->
-    %%           receive ok -> ok end
-    %%   end, Clients),
     C1 = lwt:start_v1_client(Servers),
     C2 = lwt:start_v1_client(Servers),
     C3 = lwt:start_v1_client(Servers),

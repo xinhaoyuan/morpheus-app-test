@@ -169,17 +169,17 @@ both_join_and_leave(Config) ->
        [ par
        , fun () ->
                  N = node1@localhost,
-                 ok = rpc:call(N, partisan_peer_service, join, [master@localhost]),
+                 ok = rpc:call(N, partisan_peer_service, sync_join, [master@localhost]),
                  ok = rpc:call(N, partisan_peer_service, leave, [N1])
          end
        , fun () ->
                  N = node2@localhost,
-                 ok = rpc:call(N, partisan_peer_service, join, [master@localhost]),
+                 ok = rpc:call(N, partisan_peer_service, sync_join, [master@localhost]),
                  ok = rpc:call(N, partisan_peer_service, leave, [N2])
          end
        , fun () ->
                  N = node3@localhost,
-                 ok = rpc:call(N, partisan_peer_service, join, [master@localhost])
+                 ok = rpc:call(N, partisan_peer_service, sync_join, [master@localhost])
          end
        ]),
     timer:sleep(15000),

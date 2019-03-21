@@ -26,14 +26,14 @@ test_entry() ->
     Config0 =
         [ {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
-        , {testcase, try_getenv("TESTCASE", fun list_to_atom/1, del_and_restart)}
+        , {testcase, try_getenv("TESTCASE", fun list_to_atom/1, del_copy_and_restart)}
         , {dump, try_getenv("DUMP", fun (I) -> I =/= "" end, false)}
         ],
     Config = Config0
         ++ case ?config(testcase, Config0) of
-               del_and_restart ->
+               del_copy_and_restart ->
                    [{nodes, [node1@localhost, node2@localhost]}];
-               add_and_restart ->
+               add_copy_and_restart ->
                    [{nodes, [node1@localhost, node2@localhost]}];
                _ ->
                    [{nodes, [node1@localhost, node2@localhost, node3@localhost]}]
@@ -78,8 +78,8 @@ test_entry() ->
         , { fd_opts
            , [ { scheduler
               , {?config(sched, Config),
-                 [
-                  
+                 [ %% {seed, {exrop,[130867878028454659|218503737849685219]}} %% add_copy_and_restart, no pred
+                   {seed, {exrop,[42994015880863367|91815119685021277]}} %% del_copy_and_restart, no pred
                  ]} }
             , verbose_final ] }
         , {node, node1@localhost}
@@ -94,9 +94,6 @@ test_entry() ->
         , stop_on_deadlock
         %% , trace_send, trace_receive, verbose_handle
         , {heartbeat, none}
-          %% , trace_send, trace_receive
-          %% , verbose_handle, verbose_ctl
-          %% , {trace_from_start, true}
         , {tracer_pid, Tracer}
         ]
         ++ case os:getenv("ONLY_SEND") of
@@ -151,7 +148,8 @@ prepare_and_start(Config) ->
       fun (N) -> {ok, _} = rpc:call(N, application, ensure_all_started, [mnesia]) end, ?config(nodes, Config)),
     ok.
 
-del_and_restart(Config) ->
+%% bug found
+del_copy_and_restart(Config) ->
     ok = prepare_and_start(Config),
     {atomic, ok} = mnesia:create_table(test_tab, [{disc_copies, [node1@localhost, node2@localhost]}]),
     ?G:set_flags([{tracing, true}]),
@@ -184,9 +182,11 @@ del_and_restart(Config) ->
     end,
     ok.
 
-add_and_restart(Config) ->
+%% bug found
+add_copy_and_restart(Config) ->
     ok = prepare_and_start(Config),
     {atomic, ok} = mnesia:create_table(test_tab, [{disc_copies, [node1@localhost]}]),
+    ?G:set_flags([{tracing, true}]),
     Self = self(),
     spawn(node2@localhost,
           fun () ->
@@ -218,6 +218,7 @@ add_and_restart(Config) ->
     end,
     ok.
 
+%% trivially deadlock
 add_index_and_restart(Config) ->
     ok = prepare_and_start(Config),
 
@@ -259,6 +260,7 @@ add_index_and_restart(Config) ->
 
     ok.
 
+%% trivially deadlock
 del_index_and_restart(Config) ->
     ok = prepare_and_start(Config),
 
@@ -431,7 +433,7 @@ del_index_and_add_index(Config) ->
     ok.
 
 %% no bug found yet
-add_and_del(Config) ->
+add_copy_and_del_copy(Config) ->
     ok = prepare_and_start(Config),
     {atomic, ok} = mnesia:create_table(test_tab, [{disc_copies, [node1@localhost, node2@localhost]}]),
     ?G:set_flags([{tracing, true}]),
@@ -649,7 +651,7 @@ tx_del_and_restart(Config) ->
     ok.
 
 %% no bug found yet
-add_and_del_and_tx(Config) ->
+add_copy_and_del_copy_and_tx(Config) ->
     ok = prepare_and_start(Config),
     {atomic, ok} =
         mnesia:create_table(test_record,
@@ -781,6 +783,108 @@ add_copy_and_create_index(Config) ->
     case lists:sort(mnesia:table_info(test_record, index)) of
         [#test_record.value, #test_record.value2] -> ok;
         _R -> io:format(user, "mismatched: ~p~n", [_R]), ?G:exit_with(mismatched)
+    end,
+
+    ok.
+
+%% related to http://erlang.org/pipermail/erlang-questions/2013-March/072880.html
+%% cannot reproduce on OTP-20
+dirty_read_index(Config) ->
+    ok = prepare_and_start(Config),
+    Self = self(),
+    {atomic, ok} =
+        mnesia:create_table(test_record,
+                            [{attributes, record_info(fields, test_record)},
+                             {disc_copies, [node2@localhost, node3@localhost]}]),
+    {atomic, ok} = mnesia:add_table_index(test_record, #test_record.key2),
+    (fun R (0) -> ok;
+         R (I) -> ok = mnesia:dirty_write(#test_record{key = I, key2 = i}), R(I - 1)
+     end)(10),
+    ok = mnesia:dirty_write(#test_record{key = 0, key2 = j}),
+    spawn(fun () ->
+                  {atomic, ok} = mnesia:transaction(fun () -> mnesia:write(#test_record{key = 0, key2 = j, value = x}) end)
+          end),
+    case mnesia:dirty_match_object(#test_record{key = 0, key2 = j, _ = '_'}) of
+        [] -> ?G:exit_with(empty_match);
+        _R when length(_R) =:= 1 -> ok;
+        _R -> ?G:exit_with(unexpected)
+    end,
+    ok.
+
+retry_until(Fun, Expected) ->
+    case Fun() of
+        Expected ->
+            ok;
+        _R ->
+            io:format(user, "retry with ~p~n", [_R]),
+            timer:sleep(100),
+            retry_until(Fun, Expected)
+    end.
+
+-define(F(Exp), (fun () -> Exp end)).
+
+multi_tx(Config) ->
+    ok = prepare_and_start(Config),
+    Self = self(),
+    {atomic, ok} =
+        mnesia:create_table(test_record,
+                            [{attributes, record_info(fields, test_record)},
+                             {disc_copies, [node2@localhost, node3@localhost]}]),
+
+    {atomic, ok} = mnesia:transaction(
+                     fun () ->
+                             mnesia:write(#test_record{key = a, value = x})
+                     end),
+    {atomic, ok} = mnesia:transaction(
+                     fun () ->
+                             mnesia:write(#test_record{key = b, value = y})
+                     end),
+    {atomic, ok} = mnesia:transaction(
+                     fun () ->
+                             mnesia:write(#test_record{key = c, value = z})
+                     end),
+    Self = self(),
+    spawn(?F(retry_until(
+               ?F(mnesia:transaction(
+                    ?F(begin
+                           mnesia:write(#test_record{key = a, value = x1}),
+                           mnesia:write(#test_record{key = b, value = y1}),
+                           mnesia:write(#test_record{key = c, value = z1}),
+                           ok
+                       end))), {atomic, ok}))),
+    spawn(node2@localhost,
+          ?F(retry_until(
+               ?F(mnesia:transaction(
+                    ?F(begin
+                           mnesia:write(#test_record{key = c, value = z2}),
+                           mnesia:write(#test_record{key = a, value = x2}),
+                           mnesia:write(#test_record{key = b, value = y2}),
+                           ok
+                       end))), {atomic, ok}))),
+    spawn(node3@localhost,
+          ?F(retry_until(
+               ?F(mnesia:transaction(
+                    ?F(begin
+                           mnesia:write(#test_record{key = b, value = y3}),
+                           mnesia:write(#test_record{key = c, value = z3}),
+                           mnesia:write(#test_record{key = a, value = x3}),
+                           ok
+                       end))), {atomic, ok}))),
+    case mnesia:transaction(
+           ?F(begin
+                  [#test_record{value = V1}] = mnesia:read(test_record, a),
+                  [#test_record{value = V2}] = mnesia:read(test_record, b),
+                  [#test_record{value = V3}] = mnesia:read(test_record, c),
+                  {V1, V2, V3}
+              end))
+    of
+        {atomic, {x, y, z}} -> ok;
+        {atomic, {x1, y1, z1}} -> ok;
+        {atomic, {x2, y2, z2}} -> ok;
+        {atomic, {x3, y3, z3}} -> ok;
+        _R ->
+            io:format(user, "unexpected - ~p~n", [_R]),
+            ?G:exit_with(unexpected)
     end,
 
     ok.
