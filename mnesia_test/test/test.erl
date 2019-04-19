@@ -28,6 +28,7 @@ test_entry() ->
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
         , {testcase, try_getenv("TESTCASE", fun list_to_atom/1, del_copy_and_restart)}
         , {dump, try_getenv("DUMP", fun (I) -> I =/= "" end, false)}
+        , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
         ],
     Config = Config0
         ++ case ?config(testcase, Config0) of
@@ -38,48 +39,43 @@ test_entry() ->
                _ ->
                    [{nodes, [node1@localhost, node2@localhost, node3@localhost]}]
            end,
-    TConfig =
-        [ {acc_filename, ?config(acc_filename, Config)}
-        , {find_races, true}
-        , {extra_opts,
-           maps:from_list(
-             [ {verbose_race_info, true}
-             , {verbose_racing_prediction_stat, true}
-             ]
-             ++ case os:getenv("LABELED_TRACE") of
-                    false -> [];
-                    "" -> [];
-                    Pred -> [{unify, true}]
-                end
-            )}
-        ]
-        ++ case os:getenv("PRED") of
-               false -> [];
-               "" -> [];
-               "path" ->
-                   [ {path_coverage, true}
-                   , {to_predict, true}
-                   , {predict_by, path}
-                   ];
-               "ploc" ->
-                   [ {line_coverage, true}
-                   , {to_predict, true}
-                   , {predict_by, ploc}
-                   ]
-           end
-        ++ case os:getenv("LABELED_TRACE") of
-               false -> [];
-               "" -> [];
-               Pred -> [{dump_traces, true}]
-           end,
-    {ok, Tracer} = morpheus_tracer:start_link(TConfig),
+    Pred = ?config(pred, Config),
+    Tracer =
+        case Pred of
+            no -> undefined;
+            _ ->
+                {ok, _Tracer} =
+                    morpheus_tracer:start_link(
+                      [ {acc_filename, ?config(acc_filename, Config)}
+                      , {find_races, true}
+                      , {extra_opts,
+                         maps:from_list(
+                           [ % {verbose_race_info, true}
+                             {verbose_racing_prediction_stat, true}
+                           ]
+                          )}
+                      ]
+                      ++ case Pred of
+                             path ->
+                                 [ {path_coverage, true}
+                                 , {to_predict, true}
+                                 , {predict_by, path}
+                                 ];
+                             ploc ->
+                                 [ {line_coverage, true}
+                                 , {to_predict, true}
+                                 , {predict_by, ploc}
+                                 ]
+                         end
+                     ),
+                _Tracer
+        end,
     MConfig =
         [ monitor
         , { fd_opts
            , [ { scheduler
               , {?config(sched, Config),
-                 [ %% {seed, {exrop,[130867878028454659|218503737849685219]}} %% add_copy_and_restart, no pred
-                   {seed, {exrop,[42994015880863367|91815119685021277]}} %% del_copy_and_restart, no pred
+                 [
                  ]} }
             , verbose_final ] }
         , {node, node1@localhost}
@@ -94,33 +90,26 @@ test_entry() ->
         , stop_on_deadlock
         %% , trace_send, trace_receive, verbose_handle
         , {heartbeat, none}
-        , {tracer_pid, Tracer}
+        , {undet_timeout, 50}
         ]
-        ++ case os:getenv("ONLY_SEND") of
-               false -> [];
-               "" -> [];
-               _ -> [{only_schedule_send, true}]
+        ++ case Tracer of
+               undefined -> [];
+               _ -> [{tracer_pid, Tracer}]
            end
-        ++ case os:getenv("PRED") of
-               false -> [];
-               "" -> [];
+        ++ case Pred of
+               no -> [];
                _ -> [{use_prediction, true}]
-           end
-        ++ case os:getenv("SCOPED") of
-               false -> [];
-               "" -> [];
-               _ -> [{scoped_weight, 2}]
            end
         ,
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [Config],
                     MConfig),
-    receive {'DOWN', MRef, _, _, Reason} ->
-            case ?config(dump, Config) of
-                true -> morpheus_tracer:dump_trace(Tracer);
-                false -> ok
+    receive
+        {'DOWN', MRef, _, _, Reason} ->
+            case Tracer of
+                undefined -> ok;
+                _ -> morpheus_tracer:stop(Tracer)
             end,
-            morpheus_tracer:stop(Tracer),
             success = Reason
     end,
     ok.
@@ -131,7 +120,7 @@ t_sandbox_entry(Config) ->
     ?G:exit_with(success).
 
 prepare(Config) ->
-    os:cmd("rm -r data"),
+    os:cmd("rm -r data MnesiaCore.*"),
     os:cmd("mkdir data"),
     Nodes = ?config(nodes, Config),
     lists:foreach(
