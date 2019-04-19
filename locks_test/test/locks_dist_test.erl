@@ -5,10 +5,10 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("morpheus/include/morpheus.hrl").
 
-?MORPHEUS_CB_IS_SCOPED(true, erl_eval) ->
-    true;
-?MORPHEUS_CB_IS_SCOPED(_, _) ->
-    false.
+%% ?MORPHEUS_CB_IS_SCOPED(true, erl_eval) ->
+%%     true;
+%% ?MORPHEUS_CB_IS_SCOPED(_, _) ->
+%%     false.
 
 all_test_() ->
     {timeout, 120, ?_test( test_entry() )}.
@@ -26,45 +26,40 @@ test_entry() ->
     Config =
         [ {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
-        , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
+        , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
-        , {dump, try_getenv("DUMP", fun (I) -> I =/= "" end, false)}
         ],
-    TConfig =
-        [ {acc_filename, ?config(acc_filename, Config)}
-        , {find_races, true}
-        , {extra_opts,
-           maps:from_list(
-             [ {verbose_race_info, true}
-             , {verbose_racing_prediction_stat, true}
-             ]
-             ++ case os:getenv("LABELED_TRACE") of
-                    false -> [];
-                    "" -> [];
-                    Pred -> [{unify, true}]
-                end
-            )}
-        ]
-        ++ case os:getenv("PRED") of
-               false -> [];
-               "" -> [];
-               "path" ->
-                   [ {path_coverage, true}
-                   , {to_predict, true}
-                   , {predict_by, path}
-                   ];
-               "ploc" ->
-                   [ {line_coverage, true}
-                   , {to_predict, true}
-                   , {predict_by, ploc}
-                   ]
-           end
-        ++ case os:getenv("LABELED_TRACE") of
-               false -> [];
-               "" -> [];
-               Pred -> [{dump_traces, true}]
-           end,
-    {ok, Tracer} = morpheus_tracer:start_link(TConfig),
+    Pred = ?config(pred, Config),
+    Tracer =
+        case Pred of
+            no -> undefined;
+            _ ->
+                {ok, _Tracer} =
+                    morpheus_tracer:start_link(
+                      [ {acc_filename, ?config(acc_filename, Config)}
+                      , {find_races, true}
+                      , {extra_opts,
+                         maps:from_list(
+                           [ % {verbose_race_info, true}
+                             {verbose_racing_prediction_stat, true}
+                           ]
+                          )}
+                      ]
+                      ++ case Pred of
+                             path ->
+                                 [ {path_coverage, true}
+                                 , {to_predict, true}
+                                 , {predict_by, path}
+                                 ];
+                             ploc ->
+                                 [ {line_coverage, true}
+                                 , {to_predict, true}
+                                 , {predict_by, ploc}
+                                 ]
+                         end
+                     ),
+                _Tracer
+        end,
     MConfig =
         [ monitor
         , { fd_opts
@@ -74,43 +69,25 @@ test_entry() ->
         , {node, node1@localhost}
         , {clock_limit, 600000}
         , {clock_offset, 1539105131938}
-        , {aux_module, ?MODULE}
-        , {aux_data, case os:getenv("SCOPED") of
-                         false -> false;
-                         [] -> false;
-                         _ -> true
-                     end}
-        , stop_on_deadlock
-          %% , trace_send, trace_receive
-          %% , verbose_handle, verbose_ctl
-          %% , {trace_from_start, true}
-        , {tracer_pid, Tracer}
         ]
-        ++ case os:getenv("ONLY_SEND") of
-               false -> [];
-               "" -> [];
-               _ -> [{only_schedule_send, true}]
+        ++ case Tracer of
+               undefined -> [];
+               _ -> [{tracer_pid, Tracer}]
            end
-        ++ case os:getenv("PRED") of
-               false -> [];
-               "" -> [];
+        ++ case Pred of
+               no -> [];
                _ -> [{use_prediction, true}]
-           end
-        ++ case os:getenv("SCOPED") of
-               false -> [];
-               "" -> [];
-               _ -> [{scoped_weight, 2}]
            end
         ,
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [Config],
                     MConfig),
-    receive {'DOWN', MRef, _, _, Reason} ->
-            case ?config(dump, Config) of
-                true -> morpheus_tracer:dump_trace(Tracer);
-                false -> ok
+    receive
+        {'DOWN', MRef, _, _, Reason} ->
+            case Tracer of
+                undefined -> ok;
+                _ -> morpheus_tracer:stop(Tracer)
             end,
-            morpheus_tracer:stop(Tracer),
             success = Reason
     end,
     ok.

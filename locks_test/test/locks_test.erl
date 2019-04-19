@@ -5,48 +5,48 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("morpheus/include/morpheus.hrl").
 
-%% Override gen_server loop entry to extract states
-?MORPHEUS_CB_TO_OVERRIDE(_, gen_server, loop, 7) ->
-    {true, callback};
-?MORPHEUS_CB_TO_OVERRIDE(_, locks_agent, loop, 1) ->
-    {true, callback};
-?MORPHEUS_CB_TO_OVERRIDE(_, _, _, _) ->
-    false.
+%% %% Override gen_server loop entry to extract states
+%% ?MORPHEUS_CB_TO_OVERRIDE(_, gen_server, loop, 7) ->
+%%     {true, callback};
+%% ?MORPHEUS_CB_TO_OVERRIDE(_, locks_agent, loop, 1) ->
+%%     {true, callback};
+%% ?MORPHEUS_CB_TO_OVERRIDE(_, _, _, _) ->
+%%     false.
 
-?MORPHEUS_CB_HANDLE_OVERRIDE(_, gen_server, NewModule, loop, NewEntry, Args, _Ann) ->
-    %% This is a bit of hacky to extract info from the arguments
-    %% The reporting interface in callback is not stable yet ...
-    [_, Name, State, Mod | _] = Args,
-    case Mod of
-        locks_server ->
-            ets:delete(test_state, self()),
-            ets:insert(test_state, {self(), State}),
-            ToReport = lists:sort(ets:match(test_state, '$1')),
-            %% UGLY! ...
-            morpheus_sandbox:call_ctl(morpheus_sandbox:get_ctl(), undefined, {nodelay, {guest_report_state, ToReport}}),
-            %% io:format(user, "report state ~p~n", [ToReport]),
-            ok;
-        %% locks_agent seems to have its own loop ...
-        %% locks_agent -> ok;
-        _ -> ok
-    end,
-    %% forward to the original code
-    apply(NewModule, NewEntry, Args);
-?MORPHEUS_CB_HANDLE_OVERRIDE(_, locks_agent, NewModule, loop, NewEntry, Args, _Ann) ->
-    [State] = Args,
-    ets:delete(test_state, self()),
-    ets:insert(test_state, {self(), State}),
-    ToReport = lists:sort(ets:match(test_state, '$1')),
-    %% UGLY! ...
-    morpheus_sandbox:call_ctl(morpheus_sandbox:get_ctl(), undefined, {nodelay, {guest_report_state, ToReport}}),
-    %% io:format(user, "report state ~p~n", [ToReport]),
-    %% forward to the original code
-    apply(NewModule, OrigLoop, Args).
+%% ?MORPHEUS_CB_HANDLE_OVERRIDE(_, gen_server, NewModule, loop, NewEntry, Args, _Ann) ->
+%%     %% This is a bit of hacky to extract info from the arguments
+%%     %% The reporting interface in callback is not stable yet ...
+%%     [_, Name, State, Mod | _] = Args,
+%%     case Mod of
+%%         locks_server ->
+%%             ets:delete(test_state, self()),
+%%             ets:insert(test_state, {self(), State}),
+%%             ToReport = lists:sort(ets:match(test_state, '$1')),
+%%             %% UGLY! ...
+%%             morpheus_sandbox:call_ctl(morpheus_sandbox:get_ctl(), undefined, {nodelay, {guest_report_state, ToReport}}),
+%%             %% io:format(user, "report state ~p~n", [ToReport]),
+%%             ok;
+%%         %% locks_agent seems to have its own loop ...
+%%         %% locks_agent -> ok;
+%%         _ -> ok
+%%     end,
+%%     %% forward to the original code
+%%     apply(NewModule, NewEntry, Args);
+%% ?MORPHEUS_CB_HANDLE_OVERRIDE(_, locks_agent, NewModule, loop, NewEntry, Args, _Ann) ->
+%%     [State] = Args,
+%%     ets:delete(test_state, self()),
+%%     ets:insert(test_state, {self(), State}),
+%%     ToReport = lists:sort(ets:match(test_state, '$1')),
+%%     %% UGLY! ...
+%%     morpheus_sandbox:call_ctl(morpheus_sandbox:get_ctl(), undefined, {nodelay, {guest_report_state, ToReport}}),
+%%     %% io:format(user, "report state ~p~n", [ToReport]),
+%%     %% forward to the original code
+%%     apply(NewModule, OrigLoop, Args).
 
-?MORPHEUS_CB_IS_SCOPED(true, locks_agent) ->
-    true;
-?MORPHEUS_CB_IS_SCOPED(_, _) ->
-    false.
+%% ?MORPHEUS_CB_IS_SCOPED(true, locks_agent) ->
+%%     true;
+%% ?MORPHEUS_CB_IS_SCOPED(_, _) ->
+%%     false.
 
 all_test_() ->
     {timeout, 120, ?_test( test_entry() )}.
@@ -64,7 +64,40 @@ test_entry() ->
     Config =
         [ {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
+        , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
+        , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
         ],
+    Pred = ?config(pred, Config),
+    Tracer =
+        case Pred of
+            no -> undefined;
+            _ ->
+                {ok, _Tracer} =
+                    morpheus_tracer:start_link(
+                      [ {acc_filename, ?config(acc_filename, Config)}
+                      , {find_races, true}
+                      , {extra_opts,
+                         maps:from_list(
+                           [ % {verbose_race_info, true}
+                             {verbose_racing_prediction_stat, true}
+                           ]
+                          )}
+                      ]
+                      ++ case Pred of
+                             path ->
+                                 [ {path_coverage, true}
+                                 , {to_predict, true}
+                                 , {predict_by, path}
+                                 ];
+                             ploc ->
+                                 [ {line_coverage, true}
+                                 , {to_predict, true}
+                                 , {predict_by, ploc}
+                                 ]
+                         end
+                     ),
+                _Tracer
+        end,
     MConfig =
         [ monitor
         , { fd_opts
@@ -74,38 +107,34 @@ test_entry() ->
         , {node, node1@localhost}
         , {clock_limit, 5000 + 5000 * ?config(repeat, Config)}
         , {clock_offset, 1539105131938}
-        , {aux_module, ?MODULE}
-        , {aux_data, case os:getenv("SCOPED") of
-                         false -> false;
-                         [] -> false;
-                         _ -> true
-                     end}
-        , stop_on_deadlock
+        %% , {aux_module, ?MODULE}
+        %% , {aux_data, case os:getenv("SCOPED") of
+        %%                  false -> false;
+        %%                  [] -> false;
+        %%                  _ -> true
+        %%              end}
+        %% , stop_on_deadlock
         ]
-        ++ case os:getenv("ONLY_SEND") of
-               false -> [];
-               "" -> [];
-               _ -> [{only_schedule_send, true}]
+        ++ case Tracer of
+               undefined -> [];
+               _ -> [{tracer_pid, Tracer}]
            end
-        ++ [{tracer_opts, [ {acc_filename, "acc.dat"}
-                          , {po_coverage, true}
-                          , {find_races, true}
-                          , {path_coverage, true}
-                          , {line_coverage, true}
-                          , {to_predict, true}
-                          , {extra_opts, #{verbose_race_info => true, verbose_racing_prediction_stat => true}}
-                          ]}]
-        ++ case os:getenv("SCOPED") of
-               false -> [];
-               "" -> [];
-               _ -> [{scoped_weight, 2}]
+        ++ case Pred of
+               no -> [];
+               _ -> [{use_prediction, true}]
            end
         ,
-    test_state = ets:new(test_state, [public, named_table]),
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, t_sandbox_entry, [Config],
                     MConfig),
-    success = receive {'DOWN', MRef, _, _, Reason} -> Reason end,
+    receive
+        {'DOWN', MRef, _, _, Reason} ->
+            case Tracer of
+                undefined -> ok;
+                _ -> morpheus_tracer:stop(Tracer)
+            end,
+            success = Reason
+    end,
     ok.
 
 -define(G, morpheus_guest).
