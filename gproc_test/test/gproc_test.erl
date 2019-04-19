@@ -6,10 +6,10 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("morpheus/include/morpheus.hrl").
 
-?MORPHEUS_CB_IS_SCOPED(true, gen_leader) ->
-    true;
-?MORPHEUS_CB_IS_SCOPED(_, _) ->
-    false.
+%% ?MORPHEUS_CB_IS_SCOPED(true, gen_leader) ->
+%%     true;
+%% ?MORPHEUS_CB_IS_SCOPED(_, _) ->
+%%     false.
 
 all_test_() ->
     {timeout, 3600, ?_test( test_entry() )}.
@@ -36,6 +36,7 @@ test_entry() ->
         , {nodes, [node1@localhost, node2@localhost, node3@localhost]}
         , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
+        , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
         ],
     Config =
         Config0
@@ -46,6 +47,7 @@ test_entry() ->
                  t_master_dies -> false;
                  _ -> false
              end}],
+    Pred = ?config(pred, Config),
     io:format(user, "Test config = ~p~n", [Config]),
     case os:getenv("TEST_WD") of
         false -> ok;
@@ -58,43 +60,37 @@ test_entry() ->
                      ),
               os:cmd(Cmd)
       end, ?config(nodes, Config)),
-    test_state_tab = ets:new(test_state_tab, [public, named_table]),
-    TracerOpts =
-        [ {acc_filename, ?config(acc_filename, Config)}
-        , {find_races, true}
-        , {extra_opts,
-           maps:from_list(
-             [ {verbose_race_info, true}
-             , {verbose_racing_prediction_stat, true}
-             ]
-             ++ case os:getenv("LABELED_TRACE") of
-                    false -> [];
-                    "" -> [];
-                    Pred -> [{unify, true}]
-                end
-            )}
-        ]
-        ++ case os:getenv("PRED") of
-               "path" ->
-                   [ {path_coverage, true}
-                   , {to_predict, true}
-                   , {predict_by, path}
-                   ];
-               "ploc" ->
-                   [ {line_coverage, true}
-                   , {to_predict, true}
-                   , {predict_by, ploc}
-                   ];
-               _ -> []
-           end
-        ++ case os:getenv("LABELED_TRACE") of
-               false -> [];
-               "" -> [];
-               Pred -> [{dump_traces, true}]
-           end,
-    io:format(user, "tracer_opts = ~p~n", [TracerOpts]),
-    {ok, Tracer} =
-        morpheus_tracer:start_link(TracerOpts),
+    Tracer =
+        case Pred of
+            no -> undefined;
+            _ ->
+                {ok, _Tracer} = morpheus_tracer:start_link(
+                                  [ {acc_filename, ?config(acc_filename, Config)}
+                                  , {find_races, true}
+                                  , {extra_opts,
+                                     maps:from_list(
+                                       [ % {verbose_race_info, true}
+                                       %,
+                                         {verbose_racing_prediction_stat, true}
+                                       ]
+                                      )}
+                                  ]
+                                  ++ case Pred of
+                                         path ->
+                                             [ {path_coverage, true}
+                                             , {to_predict, true}
+                                             , {predict_by, path}
+                                             ];
+                                         ploc ->
+                                             [ {line_coverage, true}
+                                             , {to_predict, true}
+                                             , {predict_by, ploc}
+                                             ];
+                                         _ -> []
+                                     end
+                                 ),
+                _Tracer
+        end,
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, test_sandbox_entry, [Config],
                     [ monitor
@@ -113,45 +109,27 @@ test_entry() ->
                         ]}
                     , stop_on_deadlock
                     , {node, master@localhost}
-                    , {aux_module, ?MODULE}
-                    , {aux_data,
-                       case os:getenv("SCOPED") of
-                           false -> false;
-                           "" -> false;
-                           _ -> true
-                       end}
                     , {clock_limit, 10000 + ?config(repeat, Config) * 10000}
-                    , {tracer_pid, Tracer}
                     %% , trace_receive, trace_send
                     %% , verbose_handle
                     %% , verbose_ctl
                     %% , {trace_from_start, true}
                     ]
-                    ++ case os:getenv("ONLY_SEND") of
-                           false -> [];
-                           "" -> [];
-                           _ -> [{only_schedule_send, true}]
+                    ++ case Tracer of
+                           undefined -> [];
+                           _ -> [{tracer_pid, Tracer}]
                        end
-                    ++ case os:getenv("PRED") of
-                           false -> [];
-                           "" -> [];
+                    ++ case Pred of
+                           no -> [];
                            _ -> [{use_prediction, true}]
-                       end
-                    ++ case os:getenv("SCOPED") of
-                           false -> [];
-                           "" -> [];
-                           _ -> [{scoped_weight, 2}]
                        end
                    ),
     receive
         {'DOWN', MRef, _, _, Reason} ->
-            case Reason of
-                success ->
-                    ok;
-                _ ->
-                    morpheus_tracer:dump_trace(Tracer)
+            case Tracer of
+                undefined -> ok;
+                _ -> morpheus_tracer:stop(Tracer)
             end,
-            morpheus_tracer:stop(Tracer),
             success = Reason
     end,
     ok.
@@ -342,7 +320,7 @@ t_simple_reg([H|_] = Ns) ->
     Name = ?T_NAME,
     P = t_spawn_reg(H, Name),
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, P)),
-    io:format(user, "start testing before unreg~n", []),
+    %% io:format(user, "start testing before unreg~n", []),
     %% ?G:call_ctl({nodelay, {set_fd_guidance, [0]}}),
     ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
