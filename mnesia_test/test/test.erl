@@ -88,8 +88,11 @@ test_entry() ->
                          _ -> true
                      end}
         , stop_on_deadlock
-        %% , trace_send, trace_receive, verbose_handle
+        %% , trace_send, trace_receive
+        %% , verbose_handle
+        %% , trace_from_start
         , {heartbeat, none}
+        , {execution_limit, 20000}
         , {undet_timeout, 50}
         ]
         ++ case Tracer of
