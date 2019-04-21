@@ -56,16 +56,45 @@ try_getenv(Name, Handler, Default) ->
     end.
 
 test_entry() ->
-    Config = [ %%
-               {node_id,  {testcase_node1, node()}}
-             , {node_id2, {testcase_node2, node()}}
-             , {node_id3, {testcase_node3, node()}}
-             , {cluster_id, <<"cluster">>}
-             , {uid, <<"node_uid">>}
-             , {priv_dir, "/tmp/rabbit"}
-             , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
-             , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
-             ],
+    Config =
+        [ {priv_dir, "rabbit_data"}
+        , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
+        , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
+        , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
+        , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
+        ],
+    os:cmd(lists:flatten(io_lib:format("rm -r ~s", [?config(priv_dir, Config)]))), 
+    Pred = ?config(pred, Config),
+    Tracer =
+        case Pred of
+            no -> undefined;
+            _ ->
+                {ok, _Tracer} =
+                    morpheus_tracer:start_link(
+                      [ {acc_filename, ?config(acc_filename, Config)}
+                      , {find_races, true}
+                      , {extra_opts,
+                         maps:from_list(
+                           [ % {verbose_race_info, true}
+                             {verbose_racing_prediction_stat, true}
+                           ]
+                          )}
+                      ]
+                      ++ case Pred of
+                             path ->
+                                 [ {path_coverage, true}
+                                 , {to_predict, true}
+                                 , {predict_by, path}
+                                 ];
+                             ploc ->
+                                 [ {line_coverage, true}
+                                 , {to_predict, true}
+                                 , {predict_by, ploc}
+                                 ]
+                         end
+                     ),
+                _Tracer
+        end,
     MConfig =
         [ monitor
         , { fd_opts
@@ -73,22 +102,28 @@ test_entry() ->
               , {?config(sched, Config), []} }
             , verbose_final ] }
         , stop_on_deadlock
-          %% , {aux_module, ?MODULE}
-          %% , {heartbeat, 5000}
-          %% , trace_send, trace_receive
-          %% , verbose_handle, verbose_ctl
         , {clock_limit, 10000 + ?config(repeat, Config) * 10000}
         ]
-        ++ case os:getenv("ONLY_SEND") of
-               false -> [];
-               "" -> [];
-               _ -> [{only_schedule_send, true}]
-           end,
+        ++ case Tracer of
+               undefined -> [];
+               _ -> [{tracer_pid, Tracer}]
+           end
+        ++ case Pred of
+               no -> [];
+               _ -> [{use_prediction, true}]
+           end
+        ,
     {Ctl, MRef} = morpheus_sandbox:start(
                     ?MODULE, test_sandbox_entry, [Config],
                     MConfig),
-    ?assertEqual(success, receive {'DOWN', MRef, _, _, Reason} -> Reason end),
-
+    receive
+        {'DOWN', MRef, _, _, Reason} ->
+            case Tracer of
+                undefined -> ok;
+                _ -> morpheus_tracer:stop(Tracer)
+            end,
+            success = Reason
+    end,
     ok.
 
 test_sandbox_entry(Config) ->
@@ -100,17 +135,7 @@ test_sandbox_entry(Config) ->
     {ok, ECBegin} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
     ?GH:sync_task(
        [ repeat, ?config(repeat, Config)
-       , fun () ->
-                 lists:foreach(fun (Fun) ->
-                                       apply(?MODULE, Fun, [Config])
-                               end,
-                               [
-                                leave_while_join
-                                %% double_join
-                                %% double_leave
-                                %% terminate_restart
-                               ])
-         end
+       , fun () -> leave_while_join(Config) end
        ]),
 
     {ok, ECEnd} = ?G:call_ctl({nodelay, {query, scheduler_push_counter}}),
