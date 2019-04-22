@@ -99,6 +99,20 @@ test_entry() ->
         , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
         ],
+    PrivDir = ?config(priv_dir, Config),
+    case PrivDir of
+        undefined ->
+            io:format(user, "Skip cleanup~n");
+        [] ->
+            io:format(user, "Skip cleanup due to empty priv dir~n");
+        _ ->
+            Cmd = lists:flatten(
+                    io_lib:format(
+                      "rm -rf ~s/*",
+                      [PrivDir])),
+            io:format(user, "Clean up with ~s~n", [Cmd]),
+            os:cmd(Cmd)
+    end,
     Pred = ?config(pred, Config),
     Tracer =
         case Pred of
@@ -168,21 +182,8 @@ test_entry() ->
     ok.
 
 run_test_fun(Config, FName) ->
-    PrivDir = ?config(priv_dir, Config),
     UseRaceWeighted = ?config(use_race_weighted, Config),
-    case PrivDir of
-        undefined ->
-            io:format(user, "Skip cleanup~n");
-        [] ->
-            io:format(user, "Skip cleanup due to empty priv dir~n");
-        _ ->
-            Cmd = lists:flatten(
-                    io_lib:format(
-                      "rm -rf ~s/*",
-                      [PrivDir])),
-            io:format(user, "Clean up with ~s~n", [Cmd]),
-            os:cmd(Cmd)
-    end,
+    PrivDir = ?config(priv_dir, Config),
 
     ra:start_in(PrivDir),
     apply(?MODULE, FName, [Config]),
