@@ -138,7 +138,7 @@ test_entry() ->
               [{scheduler,
                 { ?config(sched, Config)
                 , []
-                }}]}
+                }}, verbose_final]}
            , {heartbeat, once}
            , {clock_offset, 1538099922306}
            , {clock_limit, ?config(repeat, Config) * 30000 + 30000}
