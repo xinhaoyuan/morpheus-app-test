@@ -103,6 +103,7 @@ test_entry() ->
             , verbose_final ] }
         , stop_on_deadlock
         , {clock_limit, 10000 + ?config(repeat, Config) * 10000}
+        , {heartbeat, none}
         ]
         ++ case Tracer of
                undefined -> [];

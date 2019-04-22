@@ -1,6 +1,6 @@
 PROJECT = rabbit_test
 DEPS = rabbit
-dep_rabbit = git https://github.com/rabbitmq/rabbitmq-server.git
+dep_rabbit = git https://github.com/rabbitmq/rabbitmq-common.git
 dep_rabbit_commit = v3.7.8
 
 include ../dep_morpheus.mk
