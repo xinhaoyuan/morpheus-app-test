@@ -50,3 +50,6 @@
         { from             :: server_id()
         , ballot           :: ballot_id()
         }).
+
+% -define(verbose(F, A), io:format(user, F, A)).
+-define(verbose(F, A), ok).

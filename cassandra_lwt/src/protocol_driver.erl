@@ -34,7 +34,7 @@ handle_input(Input, #protocol_state{mod = Mod, state = State} = PState) ->
 handle_actions([]) ->
     ok;
 handle_actions([?send(To, Content) | Tail]) ->
-    %% io:format(user, "~w == ~w => ~w~n", [self(), Content, To]), 
+    ?verbose("~w == ~w => ~w~n", [self(), Content, To]), 
     To ! Content,
     handle_actions(Tail).
 

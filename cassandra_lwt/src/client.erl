@@ -273,5 +273,5 @@ handle(#msg_ack
             {[], State}
     end;
 handle(_Input, State) ->
-    io:format(user, "!!! Ignored input ~w~n  at state ~p~n", [_Input, State]),
+    ?verbose("!!! Ignored input ~w~n  at state ~p~n", [_Input, State]),
     {[], State}.
