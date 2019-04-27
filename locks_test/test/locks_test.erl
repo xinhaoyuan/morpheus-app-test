@@ -65,6 +65,7 @@ test_entry() ->
         [ {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
         , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
+        , {pred_skip, try_getenv("PRED_SKIP", fun ("") -> false; (_) -> true end, false)}
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
         ],
     Pred = ?config(pred, Config),
@@ -107,6 +108,7 @@ test_entry() ->
         , {node, node1@localhost}
         , {clock_limit, 5000 + 5000 * ?config(repeat, Config)}
         , {clock_offset, 1539105131938}
+        , {throttle_control, {10000, 10}}
         %% , {aux_module, ?MODULE}
         %% , {aux_data, case os:getenv("SCOPED") of
         %%                  false -> false;
@@ -121,7 +123,7 @@ test_entry() ->
            end
         ++ case Pred of
                no -> [];
-               _ -> [{use_prediction, true}]
+               _ -> [{use_prediction, case ?config(pred_skip, Config) of true -> skip; false -> true end}]
            end
         ,
     {Ctl, MRef} = morpheus_sandbox:start(

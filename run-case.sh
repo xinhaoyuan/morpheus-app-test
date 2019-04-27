@@ -5,8 +5,6 @@ name="$2"
 case_dir="$3"
 task_num="$4"
 repeat="$5"
-sched="$6"
-pred="$7"
 
 case $name in
     locks-1)
@@ -52,8 +50,8 @@ echo Redirect output to $output
     
 for X in `seq 1 ${repeat}`; do
     if [ "$use_t" = t ]; then
-        env REPEAT=1 PRED=$pred SCHED=$sched make -C ${case_dir}_copy_${task_num} eunit t=$testcase >>$output 2>&1
+        make -C ${case_dir}_copy_${task_num} eunit t=$testcase >>$output 2>&1
     else
-        env TESTCASE=$testcase REPEAT=1 PRED=$pred SCHED=$sched make -C ${case_dir}_copy_${task_num} eunit t=$testcase >>$output 2>&1
+        TESTCASE=$testcase make -C ${case_dir}_copy_${task_num} eunit t=$testcase >>$output 2>&1
     fi
 done
