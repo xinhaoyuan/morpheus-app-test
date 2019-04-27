@@ -10,7 +10,7 @@ parser.add_argument("-n", type = int, dest = "task_num", default = -10)
 parser.add_argument("--repeat", type = int, dest = "repeat", default = 1000)
 parser.add_argument("--sched", type = str, dest = "sched", required = True)
 parser.add_argument("--pred", type = str, dest = "pred", default = "no")
-parser.add_argument("--pred-skip", action = "store_true", dest = "pred_skip") 
+parser.add_argument("--pred-skip", action = "store_true", dest = "pred_skip")
 args = parser.parse_args()
 
 case_dir = {
@@ -23,6 +23,18 @@ case_dir = {
     "mnesia-2": "mnesia_test",
     "ms-1"    : "rabbit_test",
 }
+
+pct_info = {
+    "locks-1" : ((250, 5), (132, 5))
+}
+
+if args.sched == "pct":
+    if args.case not in pct_info and not ("FD_PCT_LENGTH" in os.environ and "FD_PCT_DEPTH" in os.environ):
+        sys.stderr.write("PCT info missing\n")
+        sys.exit(1)
+    if args.pred != "no" and not args.pred_skip:
+        std.stderr.write("Force pred_skip for PCT\n")
+        args.pred_skip = True
 
 try:
     erl_path = sp.check_output("which erl", shell = True)
@@ -56,7 +68,7 @@ filename = "output-{case}-{task_num}-{pred}-{repeat}-{sched}".format(
     task_num = args.task_num,
     repeat = args.repeat,
     sched = args.sched,
-    pred = "{}_{}".format(args.pred, "s" if args.pred_skip else "w"))
+    pred = "no" if args.pred == "no" else "{}_{}".format(args.pred, "s" if args.pred_skip else "w"))
 
 if os.path.isfile(filename):
     sys.stderr.write("Output file [{}] already exists. Consider backing it up.\n".format(filename))
@@ -68,6 +80,16 @@ env["SCHED"] = args.sched
 env["PRED_SKIP"] = "t" if args.pred_skip else ""
 env["PRED"] = args.pred
 env["REPEAT"] = "1" # this is for the test's interal loop ...
+if args.sched == "pct" and "FD_PCT_LENGTH" not in env:
+    if args.pred == "no":
+        env["FD_PCT_LENGTH"] = str(pct_info[args.case][0][0])
+    else:
+        env["FD_PCT_LENGTH"] = str(pct_info[args.case][1][0])
+if args.sched == "pct" and "FD_PCT_DEPTH" not in env:
+    if args.pred == "no":
+        env["FD_PCT_DEPTH"] = str(pct_info[args.case][0][1])
+    else:
+        env["FD_PCT_DEPTH"] = str(pct_info[args.case][1][1])
 p = sp.Popen(["./run-case.sh", filename, args.case, case_dir[args.case], str(args.task_num), str(args.repeat)], env = env)
 try:
     p.wait()
