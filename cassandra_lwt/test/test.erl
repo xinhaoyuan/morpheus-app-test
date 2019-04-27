@@ -62,42 +62,50 @@ test_entry() ->
         , {check_consistency, try_getenv("CHECK_CONSISTENCY", fun list_to_atom/1, false)}
         , {check_duplicate, try_getenv("CHECK_DUPLICATE", fun list_to_atom/1, false)}
         , {testcase, try_getenv("TESTCASE", fun list_to_atom/1, test_v2)}
+        , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
         ],
-    TConfig =
-        [ {acc_filename, ?config(acc_filename, Config)}
-        , {find_races, true}
-        , {extra_opts,
-           maps:from_list(
-             [ {verbose_race_info, true}
-             , {verbose_racing_prediction_stat, true}
-             ]
-             ++ case os:getenv("LABELED_TRACE") of
-                    false -> [];
-                    "" -> [];
-                    Pred -> [{unify, true}]
-                end
-            )}
-        ]
-        ++ case os:getenv("PRED") of
-               false -> [];
-               "" -> [];
-               "path" ->
-                   [ {path_coverage, true}
-                   , {to_predict, true}
-                   , {predict_by, path}
-                   ];
-               "ploc" ->
-                   [ {line_coverage, true}
-                   , {to_predict, true}
-                   , {predict_by, ploc}
-                   ]
-           end
-        ++ case os:getenv("LABELED_TRACE") of
-               false -> [];
-               "" -> [];
-               Pred -> [{dump_traces, true}]
-           end,
-    {ok, Tracer} = morpheus_tracer:start_link(TConfig),
+    Pred = ?config(pred, Config),
+    Tracer =
+        case Pred of
+            no -> undefined;
+            _ ->
+                {ok, _Tracer} = morpheus_tracer:start_link(
+                                  [ {acc_filename, ?config(acc_filename, Config)}
+                                  , {find_races, true}
+                                  , {extra_opts,
+                                     maps:from_list(
+                                       [ {verbose_race_info, true}
+                                       , {verbose_racing_prediction_stat, true}
+                                       ]
+                                       ++ case os:getenv("LABELED_TRACE") of
+                                              false -> [];
+                                              "" -> [];
+                                              Pred -> [{unify, true}]
+                                          end
+                                      )}
+                                  ]
+                                  ++ case Pred of
+                                         no -> [];
+                                         path ->
+                                             [ {path_coverage, true}
+                                             , {to_predict, true}
+                                             , {predict_by, path}
+                                             ];
+                                         ploc ->
+                                             [ {line_coverage, true}
+                                             , {to_predict, true}
+                                             , {predict_by, ploc}
+                                             ]
+                                     end
+                                  ++ case os:getenv("LABELED_TRACE") of
+                                         false -> [];
+                                         "" -> [];
+                                         Pred -> [{dump_traces, true}]
+                                     end
+                                 ),
+                _Tracer
+        end,
+                                  
     MConfig =
         [ monitor
         , { fd_opts
@@ -115,8 +123,11 @@ test_entry() ->
         , stop_on_deadlock
         %% , trace_send, trace_receive, trace_from_start
         , {heartbeat, none}
-        , {tracer_pid, Tracer}
         ]
+        ++ case Tracer of
+               undefined -> [];
+               _ -> [{tracer_pid, Tracer}]
+           end
         ++ case os:getenv("ONLY_SEND") of
                false -> [];
                "" -> [];
@@ -137,11 +148,11 @@ test_entry() ->
                     ?MODULE, t_sandbox_entry, [Config],
                     MConfig),
     receive {'DOWN', MRef, _, _, Reason} ->
-            case ?config(dump, Config) of
-                true -> morpheus_tracer:dump_trace(Tracer);
-                false -> ok
+            case Tracer of
+                undefined -> ok;
+                _ ->
+                    morpheus_tracer:stop(Tracer)
             end,
-            morpheus_tracer:stop(Tracer),
             success = Reason
     end,
     ok.
