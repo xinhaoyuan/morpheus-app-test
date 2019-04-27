@@ -25,7 +25,8 @@ case_dir = {
 }
 
 pct_info = {
-    "locks-1" : ((250, 5), (132, 5))
+    "locks-1" : [(250, 5), (132, 5)],
+    "locks-2" : [(164, 5), (266, 5)],
 }
 
 if args.sched == "pct":
