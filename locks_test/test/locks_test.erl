@@ -78,8 +78,8 @@ test_entry() ->
                       , {find_races, true}
                       , {extra_opts,
                          maps:from_list(
-                           [ % {verbose_race_info, true}
-                             {verbose_racing_prediction_stat, true}
+                           [ {verbose_race_info, true}
+                           , {verbose_racing_prediction_stat, true}
                            ]
                           )}
                       ]
