@@ -24,6 +24,7 @@ case_dir = {
     "ms-1"    : "rabbit_test",
 }
 
+# Profiled from 100 basicpos runs
 pct_info = {
     "locks-1" : [(250, 5), (132, 5)],
     "locks-2" : [(164, 5), (266, 5)],
