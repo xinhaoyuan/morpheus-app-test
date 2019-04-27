@@ -69,6 +69,7 @@ test_entry() ->
             , verbose_final ] }
         , {node, node1@localhost}
         , {clock_limit, 600000}
+        , {throttle_control, {10000, 10}}
         , {clock_offset, 1539105131938}
         ]
         ++ case Tracer of

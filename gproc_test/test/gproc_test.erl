@@ -110,6 +110,7 @@ test_entry() ->
                     , stop_on_deadlock
                     , {node, master@localhost}
                     , {clock_limit, 10000 + ?config(repeat, Config) * 10000}
+                    , {throttle_control, {10000, 10}}
                     %% , trace_receive, trace_send
                     %% , verbose_handle
                     %% , verbose_ctl
