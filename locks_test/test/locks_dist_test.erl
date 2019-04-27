@@ -27,6 +27,7 @@ test_entry() ->
         [ {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {repeat, try_getenv("REPEAT", fun list_to_integer/1, 100)}
         , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
+        , {pred_skip, try_getenv("PRED_SKIP", fun ("") -> false; (_) -> true end, false)}
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
         ],
     Pred = ?config(pred, Config),
@@ -40,8 +41,8 @@ test_entry() ->
                       , {find_races, true}
                       , {extra_opts,
                          maps:from_list(
-                           [ % {verbose_race_info, true}
-                             {verbose_racing_prediction_stat, true}
+                           [ {verbose_race_info, true}
+                           , {verbose_racing_prediction_stat, true}
                            ]
                           )}
                       ]
@@ -76,7 +77,7 @@ test_entry() ->
            end
         ++ case Pred of
                no -> [];
-               _ -> [{use_prediction, true}]
+               _ -> [{use_prediction, case ?config(pred_skip, Config) of true -> skip; false -> true end}]
            end
         ,
     {Ctl, MRef} = morpheus_sandbox:start(

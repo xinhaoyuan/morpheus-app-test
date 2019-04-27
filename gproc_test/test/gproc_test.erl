@@ -37,6 +37,7 @@ test_entry() ->
         , {sched, try_getenv("SCHED", fun list_to_atom/1, basicpos)}
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
         , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
+        , {pred_skip, try_getenv("PRED_SKIP", fun ("") -> false; (_) -> true end, false)}
         ],
     Config =
         Config0
@@ -120,7 +121,7 @@ test_entry() ->
                        end
                     ++ case Pred of
                            no -> [];
-                           _ -> [{use_prediction, true}]
+                           _ -> [{use_prediction, case ?config(pred_skip, Config) of true -> skip; false -> true end}]
                        end
                    ),
     receive

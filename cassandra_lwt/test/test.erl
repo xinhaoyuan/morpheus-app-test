@@ -113,7 +113,8 @@ test_entry() ->
               , {?config(sched, Config),
                  [
                   %% {seed, {exrop,[69234962250945757|600092897920190]}}
-                  {is_racing_fun, fun is_racing/2}
+                  %% {is_racing_fun, fun is_racing/2}
+                  {reset_watermark, 0.05}
                  ]} }
             , verbose_final ] }
         , {node, node1@localhost}
