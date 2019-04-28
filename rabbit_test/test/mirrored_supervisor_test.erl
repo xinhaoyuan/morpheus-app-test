@@ -102,6 +102,7 @@ test_entry() ->
               , {?config(sched, Config), []} }
             , verbose_final ] }
         , stop_on_deadlock
+        , {clock_offset, 1538099922306}
         , {clock_limit, 10000 + ?config(repeat, Config) * 10000}
         , {heartbeat, none}
         ]
