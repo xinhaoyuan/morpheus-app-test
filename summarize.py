@@ -43,7 +43,8 @@ def avg(l):
 
 sys.stdout.write("iterations: {}\n".format(parser.iteration_count))
 sys.stdout.write("dequeue count: avg {:.02f}\n".format(avg(parser.deque_count))) 
-sys.stdout.write("max_conc_legnth: avg {:.02f}, max {}\n".format(avg(parser.max_conc_length), max(parser.max_conc_length))) 
+if len(parser.max_conc_length) > 0:
+    sys.stdout.write("max_conc_legnth: avg {:.02f}, max {}\n".format(avg(parser.max_conc_length), max(parser.max_conc_length))) 
 sys.stdout.write("errors ({}):\n".format(len(parser.errors)))
 for k in parser.errors:
     sys.stdout.write("  {}: {}\n".format(k, parser.errors[k]))
