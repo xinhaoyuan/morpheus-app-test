@@ -325,8 +325,7 @@ t_simple_reg([H|_] = Ns) ->
     %% ?G:call_ctl({nodelay, {set_fd_guidance, [0]}}),
     ?assertMatch(true, t_call(P, {apply, gproc, unreg, [Name]})),
     ?assertMatch(ok, t_lookup_everywhere(Name, Ns, undefined)),
-    ?assertMatch(ok, t_call(P, die))
-    ok.
+    ?assertMatch(ok, t_call(P, die)).
 
 read_result({badrpc, {'EXIT', {badarg, _}}}) -> badarg;
 read_result(R) -> R.
