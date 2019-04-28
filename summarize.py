@@ -42,7 +42,8 @@ def avg(l):
     return sum(l) / float(len(l))
 
 sys.stdout.write("iterations: {}\n".format(parser.iteration_count))
-sys.stdout.write("dequeue count: avg {:.02f}\n".format(avg(parser.deque_count))) 
+if len(parser.deque_count) > 0:
+    sys.stdout.write("dequeue count: avg {:.02f}\n".format(avg(parser.deque_count))) 
 if len(parser.max_conc_length) > 0:
     sys.stdout.write("max_conc_legnth: avg {:.02f}, max {}\n".format(avg(parser.max_conc_length), max(parser.max_conc_length))) 
 sys.stdout.write("errors ({}):\n".format(len(parser.errors)))
