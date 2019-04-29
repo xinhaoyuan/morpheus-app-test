@@ -29,6 +29,7 @@ test_entry() ->
         , {testcase, try_getenv("TESTCASE", fun list_to_atom/1, del_copy_and_restart)}
         , {dump, try_getenv("DUMP", fun (I) -> I =/= "" end, false)}
         , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
+        , {pred_skip, try_getenv("PRED_SKIP", fun ("") -> false; (_) -> true end, false)}
         ],
     Config = Config0
         ++ case ?config(testcase, Config0) of
@@ -81,6 +82,7 @@ test_entry() ->
         , {node, node1@localhost}
         , {clock_limit, 60000}
         , {clock_offset, 1539105131938}
+        , {throttle_control, {10000, 10}}
         , {aux_module, ?MODULE}
         , {aux_data, case os:getenv("SCOPED") of
                          false -> false;
@@ -101,7 +103,7 @@ test_entry() ->
            end
         ++ case Pred of
                no -> [];
-               _ -> [{use_prediction, true}]
+               _ -> [{use_prediction, case ?config(pred_skip, Config) of true -> skip; false -> true end}]
            end
         ,
     {Ctl, MRef} = morpheus_sandbox:start(
