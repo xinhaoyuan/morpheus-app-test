@@ -70,6 +70,9 @@ if args.task_num < 0:
         sys.exit(1)
     else:
         sys.stderr.write("Select task num {}\n".format(args.task_num))
+else:
+    sys.stderr.write("Force task num {}\n".format(args.task_num))
+    lockfile = None
 
 filename = "output-{case}-{task_num}-{pred}-{repeat}-{sched}".format(
     case = args.case,
@@ -105,4 +108,5 @@ except KeyboardInterrupt:
     sys.stderr.write("Terminating subprocess {}\n".format(p.pid))
     os.kill(p.pid, signal.SIGINT)
 
-os.remove(lockfile)
+if lockfile is not None:
+    os.remove(lockfile)
