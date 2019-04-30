@@ -39,6 +39,18 @@ case $name in
         use_t=t
         testcase=mirrored_supervisor_test
         ;;
+    ra-1)
+        use_t=f
+        testcase=badkey_previous_cluster
+        ;;
+    ra-2)
+        use_t=f
+        testcase=inconsistent_state
+        ;;
+    ra-3)
+        use_t=f
+        testcase=inconsistent_state_2
+        ;;
     *)
         echo "Unknown case name $name"
         exit 1

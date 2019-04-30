@@ -22,6 +22,9 @@ case_dir = {
     "mnesia-1": "mnesia_test",
     "mnesia-2": "mnesia_test",
     "ms-1"    : "rabbit_test",
+    "ra-1"    : "ra_test",
+    "ra-2"    : "ra_test",
+    "ra-3"    : "ra_test",
 }
 
 # Profiled from 100 basicpos runs
@@ -34,6 +37,9 @@ pct_info = {
     "ms-1"    : [(291, 5), (109, 5)],
     "mnesia-1": [(979, 5), (507, 5)],
     "mnesia-2": [(814, 5), (434, 5)],
+    "ra-1"    : [(2086, 5), (906, 5)],
+    "ra-2"    : [(1373, 5), (611, 5)],
+    "ra-3"    : [(1438, 5), (603, 5)],
 }
 
 if args.sched == "pct":
