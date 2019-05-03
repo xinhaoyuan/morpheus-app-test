@@ -6,7 +6,7 @@ import signal
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-c", type = str, dest = "case", required = True)
-parser.add_argument("-n", type = int, dest = "task_num", default = -10)
+parser.add_argument("-n", type = int, dest = "task_num", default = -20)
 parser.add_argument("--repeat", type = int, dest = "repeat", default = 1000)
 parser.add_argument("--sched", type = str, dest = "sched", required = True)
 parser.add_argument("--pred", type = str, dest = "pred", default = "no")
