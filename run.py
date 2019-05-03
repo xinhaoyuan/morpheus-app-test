@@ -29,7 +29,7 @@ case_dir = {
 
 # Profiled from 100 basicpos runs
 pct_info = {
-    "locks-1" : [(250, 5), (132, 5)],
+    "locks-1" : [(1095, 5), (132, 5)],
     "locks-2" : [(164, 5), (266, 5)],
     "gproc-1" : [(470, 5), (200, 5)],
     "gproc-2" : [(470, 5), (200, 5)],
