@@ -38,6 +38,7 @@ test_entry() ->
         , {acc_filename, try_getenv("ACC_FILENAME", fun (I) -> I end, "acc.dat")}
         , {pred, try_getenv("PRED", fun list_to_atom/1, no)}
         , {pred_skip, try_getenv("PRED_SKIP", fun ("") -> false; (_) -> true end, false)}
+        , {profile_po, try_getenv("PROFILE_PO", fun ("") -> false; (_) -> true end, false)}
         ],
     Config =
         Config0
@@ -49,6 +50,7 @@ test_entry() ->
                  _ -> false
              end}],
     Pred = ?config(pred, Config),
+    WithTracer = Pred =/= no orelse ?config(profile_po, Config),
     io:format(user, "Test config = ~p~n", [Config]),
     case os:getenv("TEST_WD") of
         false -> ok;
@@ -62,9 +64,9 @@ test_entry() ->
               os:cmd(Cmd)
       end, ?config(nodes, Config)),
     Tracer =
-        case Pred of
-            no -> undefined;
-            _ ->
+        case WithTracer of
+            false -> undefined;
+            true ->
                 {ok, _Tracer} = morpheus_tracer:start_link(
                                   [ {acc_filename, ?config(acc_filename, Config)}
                                   , {find_races, true}
@@ -88,6 +90,13 @@ test_entry() ->
                                              ];
                                          _ -> []
                                      end
+                                  ++ case ?config(profile_po, Config) of
+                                         true ->
+                                             [ {po_coverage, true} ];
+                                         false ->
+                                             []
+                                     end
+
                                  ),
                 _Tracer
         end,
