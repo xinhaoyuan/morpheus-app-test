@@ -25,6 +25,8 @@ case_dir = {
     "ra-1"    : "ra_test",
     "ra-2"    : "ra_test",
     "ra-3"    : "ra_test",
+    "c6023"   : "cassandra_lwt",
+    "misc-simple-1" : "misc",
 }
 
 # Profiled from 100 basicpos runs

@@ -51,6 +51,14 @@ case $name in
         use_t=f
         testcase=inconsistent_state_2
         ;;
+    c6023)
+        use_t=f
+        testcase=test_v2
+        ;;
+    misc-simple-1)
+        use_t=f
+        testcase=simple_1
+        ;;
     *)
         echo "Unknown case name $name"
         exit 1

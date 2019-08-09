@@ -29,23 +29,24 @@ class Parser:
                     self.errors[error] = 0
                 self.errors[error] += 1
 
-parser = Parser()
+if __name__ == "__main__":
+    parser = Parser()
 
-if len(sys.argv) == 1:
-    parser.handle_input(sys.stdin)
-else:
-    for fn in sys.argv[1:]:
-        with open(fn) as f:
-            parser.handle_input(f)
+    if len(sys.argv) == 1:
+        parser.handle_input(sys.stdin)
+    else:
+        for fn in sys.argv[1:]:
+            with open(fn) as f:
+                parser.handle_input(f)
 
-def avg(l):
-    return sum(l) / float(len(l))
+    def avg(l):
+        return sum(l) / float(len(l))
 
-sys.stdout.write("iterations: {}\n".format(parser.iteration_count))
-if len(parser.deque_count) > 0:
-    sys.stdout.write("dequeue count: avg {:.02f}, max {}\n".format(avg(parser.deque_count), max(parser.deque_count)))
-if len(parser.conc_length) > 0:
-    sys.stdout.write("conc_legnth: avg {:.02f}, max {}\n".format(avg(parser.conc_length), max(parser.conc_length)))
-sys.stdout.write("errors ({}):\n".format(len(parser.errors)))
-for k in parser.errors:
-    sys.stdout.write("  {}: {}\n".format(k, parser.errors[k]))
+    sys.stdout.write("iterations: {}\n".format(parser.iteration_count))
+    if len(parser.deque_count) > 0:
+        sys.stdout.write("dequeue count: avg {:.02f}, max {}\n".format(avg(parser.deque_count), max(parser.deque_count)))
+    if len(parser.conc_length) > 0:
+        sys.stdout.write("conc_legnth: avg {:.02f}, max {}\n".format(avg(parser.conc_length), max(parser.conc_length)))
+    sys.stdout.write("errors ({}):\n".format(len(parser.errors)))
+    for k in parser.errors:
+        sys.stdout.write("  {}: {}\n".format(k, parser.errors[k]))
