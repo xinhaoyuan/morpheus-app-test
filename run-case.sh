@@ -62,8 +62,8 @@ echo Redirect output to $output
     
 for X in `seq 1 ${repeat}`; do
     if [ "$use_t" = t ]; then
-        make -C ${case_dir}_copy_${task_num} eunit t=$testcase >>$output 2>&1
+        /usr/bin/time make -C ${case_dir}_copy_${task_num} eunit t=$testcase >>$output 2>&1
     else
-        TESTCASE=$testcase make -C ${case_dir}_copy_${task_num} eunit >>$output 2>&1
+        /usr/bin/time env TESTCASE=$testcase make -C ${case_dir}_copy_${task_num} eunit >>$output 2>&1
     fi
 done

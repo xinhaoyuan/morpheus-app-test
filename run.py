@@ -89,7 +89,8 @@ filename = "output-{case}-{task_num}-{pred}-{repeat}-{sched}".format(
 
 if os.path.isfile(filename):
     sys.stderr.write("Output file [{}] already exists. Consider backing it up.\n".format(filename))
-    os.remove(lockfile)
+    if lockfile is not None:
+        os.remove(lockfile)
     sys.exit(1)
 
 env = os.environ.copy()

@@ -86,6 +86,11 @@ test_entry() ->
                                              , {to_predict, true}
                                              , {predict_by, ploc}
                                              ];
+                                         loc ->
+                                             [ {line_coverage, true}
+                                             , {to_predict, true}
+                                             , {predict_by, loc}
+                                             ];
                                          _ -> []
                                      end
                                  ),
