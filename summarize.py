@@ -21,7 +21,7 @@ class Parser:
             m = re.search("# of races: ([0-9]*)", line)
             if m:
                 self.num_races.append(int(m.group(1)))
-            m = re.search("pop_counter = ([0-9]*)", line)
+            m = re.search("INFO - ctl stop .* pop_counter = ([0-9]*)", line)
             if m:
                 self.pop_counter.append(int(m.group(1)))
             m = re.search("dequeue_count => ([0-9]*)", line)
@@ -64,7 +64,7 @@ if __name__ == "__main__":
 
     def print_stat(name, data):
         if len(data) > 0:
-            sys.stdout.write("{}: avg {:.02f}, max {}\n".format(name, avg(data), max(data)))
+            sys.stdout.write("{}: #: {} avg {:.02f}, max {}\n".format(name, len(data), avg(data), max(data)))
 
     sys.stdout.write("iterations: {}\n".format(parser.iteration_count))
 
